@@ -640,6 +640,8 @@ void Clouds::RLEdecode( MyImages &my_images, string image_id){
 
 	int start = 0;
 	int color = 138;
+	int row = 0;
+	int col = 0;
 
 	cv::Mat image_data = my_images.image_data_.find(image_id)->second;
 	int n_channels = image_data.channels();
@@ -647,8 +649,7 @@ void Clouds::RLEdecode( MyImages &my_images, string image_id){
 
 	cout<<my_images.encoded_pixels_id_it_->first<<endl;
 
-	int row = 0;
-	int col = 0;
+
 	my_images.encoded_pixels_label_id_  = my_images.encoded_pixels_id_it_->second.begin();
 	for(; my_images.encoded_pixels_label_id_!=my_images.encoded_pixels_id_it_->second.end(); ++my_images.encoded_pixels_label_id_){
 
@@ -657,7 +658,7 @@ void Clouds::RLEdecode( MyImages &my_images, string image_id){
 			start = my_images.encoded_pixels_label_id_->second[k][my_images.start_pixel_];
 
 
-			col = std::floor(start/image_data.rows);//std::floor(start/jpegdat.cols)+row;
+			col = std::floor(start/image_data.rows);
 
 			row = start - col*image_data.rows;
 
@@ -672,232 +673,19 @@ void Clouds::RLEdecode( MyImages &my_images, string image_id){
 
 	cout<<"after all of shape: cols "<<image_data.cols<<" rows "<<image_data.rows<<" step "<<image_data.step<< endl;
 
-	cv::imshow("image", image_data);
+	cv::imshow(image_id, image_data);
+
+
 
 	cv::waitKey(0);
 	cv::destroyWindow("image");
 
 
+
 }
 
 
 
-void Clouds::AhShit(cv::Mat &image, MyImages &my_images){
-
-	int start = 0;
-		int zero = 0;
-		int color = 138;
-		for(uint i = 0; i<this->train_imgs_filenames_.size();++i){
-
-			while(this->train_imgs_filenames_[i].compare("0011165.jpg")!=0)
-				++i;
-
-			std::vector<std::string> args;
-			args.push_back("-p");
-			args.push_back(this->train_imgs_path_);
-			args.push_back(this->train_imgs_filenames_[i]);
-
-
-			FILE *infile;
-
-			char buffer [L_tmpnam];
-			tmpnam (buffer);
-			string tmp_path_and_filename = string(buffer)+".jpg";
-			infile = fopen(tmp_path_and_filename.c_str(), "w+b");
-			bp::child c("/usr/bin/unzip",args, bp::std_out > infile);
-
-			c.wait();
-
-			fclose(infile);
-
-			cv::Mat jpegdat = cv::imread(tmp_path_and_filename.c_str());
-
-
-			my_images.encoded_pixels_id_it_ = my_images.encoded_pixels_.find(this->train_imgs_filenames_[i].substr(0,this->train_imgs_filenames_[i].find_first_of(".")));
-			//my_images.encoded_pixels_id_it_ = my_images.encoded_pixels_.find(my_images.encoded_pixels_.begin()->first);
-			cout<<my_images.encoded_pixels_id_it_->first<<endl;
-
-
-			cout<<"jpegdat.type() "<<cv::typeToString(jpegdat.type())<<endl;
-
-			//cout<<"size.dims() "<<jpegdat.size.dims()<<endl;
-			//jpegdat.rowRange()
-			//cout<<" jpegdat.size "<<jpegdat.size<<endl;
-			//jpegdat.resize(150528);
-
-
-			cv::Size size(jpegdat.rows*jpegdat.cols,1);
-			std::vector<int> newshape(2);
-			newshape[0] = 1;
-			newshape[1] = (jpegdat.cols*jpegdat.channels())*jpegdat.rows;
-
-
-
-
-
-
-			cv::Mat fuckmat;
-			fuckmat.create(size,0);
-					fuckmat.zeros(0,jpegdat.rows*jpegdat.cols, 0);
-
-					cout<<"fuck.type() "<<cv::typeToString(fuckmat.type())<<endl;
-					cout<<"is continuous "<<fuckmat.isContinuous()<<endl;
-
-			//		fuckmat.reshape(jpegdat.rows,jpegdat.cols,0);
-			//fuckmat.zeros(jpegdat.rows,jpegdat.cols, jpegdat.type());
-			//unsigned char *input = (unsigned char*)(fuckmat.data);
-
-			cout<<fuckmat.step<<endl;
-			vector<cv::Point> fuck_point;
-			//jpegdat = jpegdat.reshape(1,newshape);
-			cout<<"jpegdat shape start: rows "<<jpegdat.rows<< " columns "<<jpegdat.cols<<" channels "<<jpegdat.channels()<<" step "<<jpegdat.step<<" depth "<<jpegdat.depth()<<endl;
-			cout<<"fuckmat shape start: rows "<<fuckmat.rows<< " columns "<<fuckmat.cols<<" channels "<<fuckmat.channels()<<" step "<<fuckmat.step<<" depth "<<fuckmat.depth()<<endl;
-			//unsigned char *input = (unsigned char*)(fuckmat.data);
-			//unsigned char *input = (unsigned char*)(fuckmat.data);
-
-			vector<int> col_vect(jpegdat.cols);
-			vector<vector<int> > row_vect(jpegdat.rows, col_vect);
-			int count = 0;
-			my_images.encoded_pixels_label_id_  = my_images.encoded_pixels_id_it_->second.begin();
-			for(; my_images.encoded_pixels_label_id_!=my_images.encoded_pixels_id_it_->second.end(); ++my_images.encoded_pixels_label_id_){
-				cout<<my_images.encoded_pixels_label_id_->first<<endl;
-				cout<<(fuckmat.cols*fuckmat.channels())*fuckmat.rows<<endl;
-				cout<<fuckmat.total()<<endl;
-				//for(int q=0; q!=(jpegdat.cols*jpegdat.channels())*jpegdat.rows; ++q){
-				//	input[q] = color;
-				//}
-
-				//break;
-				//for(uint i = 0; i<my_images.encoded_pixels_label_id_->second.size(); ++i){
-				//cout<<"my "<<my_images.encoded_pixels_id_it_->second.size()<<endl;
-				//cout<<my_images.encoded_pixels_id_it_->second.begin()->second[i][my_images.num_pixels_]<<endl;
-				//cout<<"rows "<<jpegdat.rows<< " columns "<<jpegdat.cols<<" channels "<<jpegdat.channels()<<endl;
-
-
-
-				cout<<"is continuous "<<fuckmat.isContinuous()<<endl;
-				for(uint k = 0; k<my_images.encoded_pixels_label_id_->second.size(); ++k){
-					start = my_images.encoded_pixels_label_id_->second[k][my_images.start_pixel_];
-
-					//for(int q=0; q<=937*3; ++q)
-					//	input[start*3+q*3] = (uchar)255;
-					//break;
-					//fuckmat[cv::Range(start,my_images.encoded_pixels_label_id_->second[k][my_images.start_pixel_])];
-					//cout<<my_images.encoded_pixels_id_it_->second.[k][my_images.num_pixels_]<<endl;
-					/*for (int i = 0; i < jpegdat.rows; i+=20)
-				    cv::line(jpegdat, cv::Point(0,i), cv::Point(jpegdat.cols-1, i), cv::Scalar(255,0,0), 1);
-
-				for (int j = 0; j < jpegdat.cols; j+=20)
-					cv::line(jpegdat, cv::Point(j,0),cv::Point(j, jpegdat.rows-1), cv::Scalar(255,0,0), 1);*/
-
-
-					if(k>=my_images.encoded_pixels_label_id_->second.size())
-						cout<<"waht"<<endl;
-					//cout<<my_images.encoded_pixels_label_id_->second[k][my_images.num_pixels_]<<endl;
-					//for(int row  = 0; row< jpegdat.rows; ++row){
-					//	for(int col =0; col<jpegdat.cols; ++col){
-					//		if(row*col == start){
-								//{//input[start+1] =(uchar)zero;{
-								for(int j = 0; j<my_images.encoded_pixels_label_id_->second[k][my_images.num_pixels_]; ++j){
-
-									//if(j == 0)
-									//	cout<<"start "<<start<<" j "<<j<<endl;
-									//cout<<"start+j "<<start+j<<endl;
-									//jpegdat.at<uchar>(start*3+j)=(uchar)zero;
-	//								input[start+j ] =(uchar)color;
-									//input[jpegdat.step * row + col*jpegdat.channels()+1 ] =(uchar)zero;
-									//fucker[0] = (uchar)zero;
-									//input[(start+j)*3+1] = (uchar)zero;
-									//input[6300+start*3+j*3] = (uchar)color;
-									//input[start+j+1]= (uchar)color;
-									//input[start+j+2]= (uchar)zero;
-									//jpegdat.at<int>(start,start+j+1) = 255;//cout<<"fuck"<<endl;
-								}
-							//}
-						//}
-
-					//}
-
-								//cout<<"start "<<start<<" (int)input[start] "<<(int)input[start]<<endl;
-				}
-
-				break;
-			}
-
-
-			std::vector<int> final_shape(2);
-					final_shape[0] = 1400;//rows
-					final_shape[1] = 2100;//colums
-
-			//fuckmat.re
-			cv::Mat img(100, 100, CV_8UC3);
-			cv::Mat padded;
-			int padding = 3;
-			padded.create(fuckmat.rows + 2*padding, fuckmat.cols + 2*padding, fuckmat.type());
-			padded.setTo(cv::Scalar::all(0));
-
-			//fuckmat.copyTo(padded(cv::Rect(padding, padding, fuckmat.cols, fuckmat.rows)));
-
-			cout<<"padded shape: rows "<<padded.rows<<" cols "<<padded.cols<<" channels "<<padded.channels()<<" step "<<padded.step<<" depth "<<padded.depth()<<endl;
-
-			//padded= padded.reshape(3,final_shape);
-			//cout<<"padded reshape: rows "<<padded.rows<<" cols "<<padded.cols<<" channels "<<padded.channels()<<" step "<<padded.step<<" depth "<<padded.depth()<<endl;
-
-
-			//jpegdat = jpegdat.reshape(3,final_shape);
-			fuckmat = fuckmat.reshape(3,final_shape);
-			cout<<fuckmat.at<int>(317,189)<<endl;;
-
-			//cv::Mat source = cv::imread(path);
-
-			//cv::Mat newSrc(jpegdat.size(), CV_MAKE_TYPE(fuckmat.depth(), 3));
-
-			int from_to[] = { 0,0};//, 1,1, 2,2};
-
-
-			//cv::mixChannels(&fuckmat,1,&newSrc,1,from_to,3);
-
-			//cv::mixChannels(&fuckmat,1,&jpegdat,1,from_to,1);
-
-			cv::Mat in_mat;   // Already created
-			cv::Mat mask_mat; // Already created
-			cv::Mat out_mat;  // New and empty
-
-			unsigned char *input = (unsigned char*)(jpegdat.data);
-
-			//for(int q=0; q!=(jpegdat.cols*jpegdat.channels())*jpegdat.rows; ++q){
-			//				input[q] = color;
-			//			}
-
-			//cv::Vec3b my_vec3b = jpegdat.at<cv::Vec3b>(317,189);
-			int zero = 0;
-			uchar *peg_ptr = jpegdat.ptr<uchar>(317);
-
-			peg_ptr[100] =  (uchar)color;
-			peg_ptr[100*3+1] =  (uchar)color;
-			peg_ptr[189*3+1] =  (uchar)color;
-
-			//cout<<"newSrc shape: rows "<<newSrc.rows<<" cols "<<newSrc.cols<<" channels "<<newSrc.channels()<<" step "<<newSrc.step<<" depth "<<newSrc.depth()<<endl;
-
-			cout<<"after all of shape: rows "<<fuckmat.rows<<" cols "<<fuckmat.cols<<" channels "<<fuckmat.channels()<<" step "<<fuckmat.step<<" depth "<<fuckmat.depth()<<endl;
-
-			//fuckmat.copyTo(out_mat, jpegdat);
-
-			cv::imshow("image", jpegdat);
-
-			cv::waitKey(0);
-			cv::destroyWindow("image");
-
-			remove(tmp_path_and_filename.c_str());
-
-			if(i == 1000)
-				break;
-
-
-		}
-
-
-}
 /*
  * Note, instead of using this I can just iterdir function/method for reading zip file and then parse out the char *contents into
  * 		a vector<vector<> >
@@ -937,8 +725,8 @@ void Clouds::GetImageData(MyImages &my_images){
 	string image_id = " ";
 	for(uint i = 0; i<this->train_imgs_filenames_.size();++i){
 
-		//while(this->train_imgs_filenames_[i].compare("0011165.jpg")!=0)
-		//	++i;
+		while(this->train_imgs_filenames_[i].compare("0011165.jpg")!=0)
+			++i;
 
 		std::vector<std::string> args;
 		args.push_back("-p");
