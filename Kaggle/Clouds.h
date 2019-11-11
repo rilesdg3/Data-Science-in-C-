@@ -33,7 +33,7 @@
 #include "grfmt_jpeg.hpp"
 #include "utils.hpp"
 
-
+#include "zoo/resnet.h"
 // the below will work but I get some ir version error
 //#include <caffe2/proto/caffe2_pb.h> //I used this
 #include <onnx/onnx_pb.h>
@@ -113,25 +113,83 @@
 namespace bp = ::boost::process;
 
 
+struct MyImages1{
+
+
+	/*
+	 * string image id
+	 * cv::Mat data of image
+	 */
+	std::unordered_map<string, cv::Mat> image_data_;
+	/*
+	 * string image_id
+	 *
+	 */
+	std::unordered_map<string, vector<float> > image_data_vector_;
+	std::unordered_map<string, vector<float> >::iterator image_data_vector_it_;
+
+	//id_label = image id+"_"+label os it becomes id_label
+	/*
+	 * string image id_label
+	 * vector<vector< int > > encoded pixels start_pixel, num_pixels
+	 */
+	std::unordered_map<string, vector<vector<int> > > encoded_pixels_;
+	/*
+	 * string image id_label
+	 * vector< int >  decoded pixels; all pixels that make up the mask/segmentation
+	 */
+	std::unordered_map<string, vector<int> >   decoded_pixels_;
+
+	/*
+	 * string image id_label
+	 * vector< int >  one hot vector
+	 */
+	std::unordered_map<string, vector<int> > labels_one_hot_;
+	std::unordered_map<string, vector<int> >::iterator labels_one_hot_it_;
+
+	std::unordered_map<string, vector<vector<int> > >::iterator  encoded_pixels_id_it_;
+	std::unordered_map<string, vector<vector<int> > >::iterator  encoded_pixels_label_it_;
+
+	std::unordered_map<string, vector<int> >::iterator  decoded_pixels_id_it_;
+	std::unordered_map<string, vector<int> >::iterator  decoded_pixels_label_it_;
+	std::set<string> labels_;
+
+	const int start_pixel_=0;//
+	const int num_pixels_ =1;
+
+
+};
 
 struct MyImages{
 
 
 	/*
-		 * string image id
-		 * cv::Mat data of image
-		 */
-		std::multimap<string, cv::Mat> image_data_;
-		/*
-		 * string image id
-		 * string image label
-		 * vector<vector< int > > incoded pixels start_pixel, num_pixels
-		 */
-		std::multimap<string, std::multimap<string, vector<vector<int> > > >  encoded_pixels_;
-		std::multimap<string, std::multimap<string, vector<vector<int> > > >::iterator  encoded_pixels_id_it_;
-		std::multimap<string, vector<vector<int> > >::iterator  encoded_pixels_label_id_;
-		const int start_pixel_=0;//
-		const int num_pixels_ =1;
+	 * string image id
+	 * cv::Mat data of image
+	 */
+	std::multimap<string, cv::Mat> image_data_;
+	std::multimap<string, vector<float> > image_data_vector_;
+	/*
+	 * string image id
+	 * string image label
+	 * vector<vector< int > > incoded pixels start_pixel, num_pixels
+	 */
+	std::multimap<string, std::multimap<string, vector<vector<int> > > >  encoded_pixels_;
+	/*
+	 * string image id
+	 * string image label
+	 * vector< int >  decoded pixels; all pixels that make up the mask/segmentation
+	 */
+	std::multimap<string, std::multimap<string, vector<int> > >  decoded_pixels_;
+
+	std::multimap<string, std::multimap<string, vector<vector<int> > > >::iterator  encoded_pixels_id_it_;
+	std::multimap<string, vector<vector<int> > >::iterator  encoded_pixels_label_it_;
+
+	std::multimap<string, std::multimap<string, vector<int> > >::iterator  decoded_pixels_id_it_;
+	std::multimap<string, vector<int> >::iterator  decoded_pixels_label_it_;
+	std::set<string> labels_;
+	const int start_pixel_=0;//
+	const int num_pixels_ =1;
 
 
 };
@@ -148,18 +206,34 @@ public:
 	string main_path_;
 	string train_imgs_path_;
 	vector<string> train_imgs_filenames_;
+	//maps the image id with all labels found in the image
+	unordered_map<string, std::set<string> > train_id_labels_names_;
+	unordered_map<string, std::set<string> >::iterator train_id_labels_names_it_;
+	//key id_label, vector[0]=id, vector[1]= label
+	unordered_map<string, vector<string> >id_label_seperated;
+	unordered_map<string, string> id_labels_to_labels;
+	unordered_map<string, string> id_labels_to_id;
+
 	string train_labels_filename_;
 	vector<string> test_imgs_filenames_;
 
+	//TODO this std::set<string> labels_ should be built in the ParseTrainCSV
 	std::set<string> labels_{"Fish", "Flower", "Gravel", "Sugar"};
 
+	float best_test_score = 100;
+
 	void CloudsMain();
-	void BuildNet();
+	template<typename T>
+	void BuildBaseNet(T &data ,MyData::ModelConfig &model_config);
+	template<typename T,typename T1>
+	void ResNet50(T &data, T1 &data_it, MyData::ModelConfig &model_config);
 	void ConvertOnnx2Caffe2();
-	void RLEdecode(MyImages &my_images, string image_id);
-	void AhShit(cv::Mat &image, MyImages &my_images);
+	void RLEdecode(MyImages1 &my_images, string image_id,vector<string> &to_get, bool display_mask = false);
+	void RLEdecode(MyImages &my_images, string image_id,bool display_mask = false);
+	void GetImageData(MyImages1 &my_images, vector<string> &to_get);
 	void GetImageData(MyImages &my_images);
 	void SetFileNames(string path);
+	void ParseTrainCSV(string filename, MyImages1 &my_images, int n_get = 10);
 	void ParseTrainCSV(string filename, MyImages &my_images);
 	void iterdir(string file_path, vector<string> &filename);
 	vector<vector<string> > Parse(string file_name, std::set<string> &my_set, int set_column);
