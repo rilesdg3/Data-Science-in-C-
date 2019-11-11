@@ -467,7 +467,7 @@ template void SplitData<std::vector<std::vector<float > >,std::vector<float >  >
 #endif
 */
 
-#ifdef MAP
+#if DATA_MAP >= 1
 /*
  * @brief: Takes features and labels data, splits it into Train, Validate, Test and allows for deciding what sections of the data will be used for
  * training, validation, and testing.
@@ -476,9 +476,9 @@ template void SplitData<std::vector<std::vector<float > >,std::vector<float >  >
  * @tparam T3: the labels data
  * @param int TRTEVA: how to split up the data
  */
-template <typename T, typename T1>
+template <typename T, typename T1, typename Tg, typename Tm>
 template<typename T2, typename T3>
-void SplitData<T, T1>::FnlDataToStruct(T2 &data, T3 &labels, int TRTEVA){
+void SplitData<T, T1, Tg, Tm>::FnlDataToStruct(T2 &data, T3 &labels, int TRTEVA, split_or_not split){
 
 
 
@@ -585,7 +585,166 @@ void SplitData<T, T1>::FnlDataToStruct(T2 &data, T3 &labels, int TRTEVA){
 
 
 }
-template void SplitData<std::multimap<boost::posix_time::ptime, std::vector<long double> >,std::vector<float >  >::FnlDataToStruct<std::multimap<boost::posix_time::ptime, std::vector<long double> >,std::vector<float > >(std::multimap<boost::posix_time::ptime, std::vector<long double> > &, std::vector<float > &, int);
+template void SplitData<std::vector<std::vector<float > >,std::vector<float > >::FnlDataToStruct<std::multimap<boost::posix_time::ptime, std::vector<long double> >,std::vector<float > >(std::multimap<boost::posix_time::ptime, std::vector<long double> > &, std::vector<float > &, int,split_or_not);
+//template void SplitData<std::multimap<boost::posix_time::ptime, std::vector<long double> >,std::vector<float >  >::FnlDataToStruct<std::multimap<boost::posix_time::ptime, std::vector<long double> >,std::vector<float > >(std::multimap<boost::posix_time::ptime, std::vector<long double> > &, std::vector<float > &, int,split_or_not);
+
+
+
+/*
+ * @brief: creates iterators for the data by dividing the data into train, test and validate. All the data will stay in its container
+ * 			and will be iterated over using the iterators that this function builds
+ * 			Every image_id and class label should be combined to form an a unique name of the from "id_label"
+ *
+ * @tparam data: image data
+ * @tparam labels; class labels
+ * @tparam id_label_seperated: used to sep
+ * @tparam masks:  the pixels that correspond to the label
+ */
+template <typename T, typename T1, typename Tg, typename Tm>
+template<typename T2, typename T3, typename T4, typename T5>
+void SplitData<T, T1,Tg, Tm>::BuildIters(T2 &data, T3 &labels, T4 &id_label_seperated, T5 &masks, int TRTEVA, split_or_not split){
+
+	std::vector<int> labels_vect_tmp(labels.size());
+
+	int nRows = this->to_get.size();//data.size();
+
+	int count = 0;
+
+
+	int mylen=nRows;//-1;
+
+	int trainamount = std::floor(mylen/3);
+	int testamount = std::floor(mylen/3);
+	int validamount= std::floor(mylen/3);
+
+	this->train_features_.resize(trainamount);
+	this->test_features_.resize(testamount);
+	this->validate_features_.resize(validamount);
+
+	int train_features_count = 0;
+	int	test_features_count = 0;
+	int	validate_features_count = 0;
+
+	std::pair<int,int> trainrange;
+	std::pair<int,int> testrange;
+	std::pair<int,int> validrange;
+
+	int trainstart=0;
+	int trainend=(trainstart+trainamount);
+	int teststart=(trainend);
+	int testend=(teststart+testamount);
+	int validstart=(testend);
+	int validend=(validstart+validamount);
+
+	if(TRTEVA == 0){
+		trainrange =std::make_pair(trainstart,trainend);
+		testrange =std::make_pair(teststart,testend);
+		validrange =std::make_pair(validstart,validend);
+	}
+	else if(TRTEVA == 1){
+		trainrange=std::make_pair(teststart,testend);
+		testrange=std::make_pair(trainstart,trainend);
+		validrange=std::make_pair(validstart,validend);
+	}
+	else
+	{
+		trainrange=std::make_pair(validstart,validend);
+		testrange=std::make_pair(trainstart,trainend);
+		validrange=std::make_pair(teststart,testend);
+	}
+
+	string label = " ";
+	string image_id = " ";
+
+
+
+	//Todo; this for loop should go inside of the switch statements so I am not checking with every iteration
+	//for(; cBegin!=cEnd; ++cBegin){
+	for(uint i = 0; i< this->to_get.size(); ++i){
+
+		image_id = id_label_seperated.find(this->to_get[i])->first;
+
+		label = id_label_seperated.find(this->to_get[i])->second[1];
+
+		int tmp_int = std::distance(labels.begin(), labels.find(label));
+
+		labels_vect_tmp[tmp_int] = 1;
+
+		switch(split){
+		case this->no_split:{
+			//this->all_data_labels_.push_back(labels_vect_tmp);//AllData.Labels.push_back(label);
+			//this->all_data_labels_hot_.push_back(labels_vect_tmp);//AllData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+			//this->all_data_features_.push_back(featureTemp);//AllData.Features.push_back(featureTemp);
+		}
+		break;
+		case this->split_data_only:
+		{
+			if(count>=trainrange.first && count<trainrange.second){
+
+				//split_data.train_features_.push_back()
+				this->train_labels_.insert(std::make_pair(image_id, labels_vect_tmp));///TrainData.Labels.push_back(label);
+				//TrainData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+
+				this->train_features_[train_features_count]=image_id;//this->train_features_.push_back(image_id);
+				//train_features_itr = this->train_features_.find(image_id);
+
+				++train_features_count;
+
+
+			}
+			else if(count>=testrange.first && count<testrange.second){
+				this->test_labels_.insert(std::make_pair(image_id, labels_vect_tmp));//TestData.Labels.push_back(label);
+				//TestData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->test_features_[test_features_count]=image_id;//TestData.Features.push_back(featureTemp);
+				++test_features_count;
+			}
+			else {
+				this->validate_labels_.insert(std::make_pair(image_id, labels_vect_tmp));//ValidateData.Labels.push_back(label);
+				//ValidateData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->validate_features_[validate_features_count]=image_id;//ValidateData.Features.push_back(featureTemp);
+				++validate_features_count;
+			}
+		}
+		break;
+		case this->split_and_all_data:
+		{
+			if(count>=trainrange.first && count<trainrange.second){
+
+				//split_data.train_features_.push_back()
+				this->train_labels_.insert(std::make_pair(image_id, labels_vect_tmp));///TrainData.Labels.push_back(label);
+				//TrainData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->train_features_[train_features_count] =image_id;//TrainData.Features.push_back(featureTemp);
+				++train_features_count;
+			}
+			else if(count>=testrange.first && count<testrange.second){
+				this->test_labels_.insert(std::make_pair(image_id, labels_vect_tmp));//TestData.Labels.push_back(label);
+				//TestData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->test_features_[test_features_count] = image_id;//TestData.Features.push_back(featureTemp);
+				++test_features_count;
+			}
+			else {
+				this->validate_labels_.insert(std::make_pair(image_id, labels_vect_tmp));//ValidateData.Labels.push_back(label);
+				//ValidateData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->validate_features_[validate_features_count] = image_id;//ValidateData.Features.push_back(featureTemp);
+				++validate_features_count;
+			}
+		}
+
+
+		}
+
+
+		labels_vect_tmp[tmp_int] = 0.0;
+		count++;
+	}
+
+
+
+
+}
+template void SplitData<std::vector<string>,std::unordered_map<string,std::vector<int> > >::BuildIters<std::unordered_map<string, vector<float> >, std::set<string>, std::unordered_map<string, vector<string> >, std::unordered_map<string, vector<int> >  >(std::unordered_map<string, vector<float> > &, std::set<string> &, std::unordered_map<string, vector<string> > &, std::unordered_map<string, vector<int> > &,  int,split_or_not);
+//template void SplitData<std::vector<std::vector<float > >,std::vector< std::vector<float > >,std::vector<vector<int> >  >::FnlDataToStruct<std::multimap<string, vector<float> >,std::set<string>,std::multimap<string, std::multimap<string, vector<int> > > >(std::multimap<string, vector<float> > &, std::set<string> &, std::multimap<string, std::multimap<string, vector<int> > > &, int,split_or_not);
+
 
 #else
 /*

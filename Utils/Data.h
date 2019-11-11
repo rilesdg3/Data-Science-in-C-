@@ -16,7 +16,8 @@
 #include <typeinfo>
 #include <thread>
 #include <cxxabi.h>
-
+#include <unordered_map>
+#define DATA_MAP 1
 
 namespace MyData {
 
@@ -38,10 +39,15 @@ namespace MyData {
 	 * @brief: holds the data for train, validation, test and provides functions for
 	 * dividing the spliting the data into train, validate, test
 	 *
-	 * @tparam T: The features data
-	 * @tparam T1: The labels data
+	 * T, T1, and Tm will be the types that you are will be feeding into the model
+	 *
+	 * @tparam T: The features data,typically vector<vector< float> >
+	 * @tparam T1: The labels data, vector<vector< float> > for classification and vector< float> for regression
+	 * @tparam Tg: Tg is just a data type of a vector. were the vector is the data that you want to split into train, test, validate
+	 * 				default is a string
+	 * @tparam Tm: The labels mask, vector<vector< float> >
 	 */
-	template<typename T, typename T1>
+	template<typename T, typename T1, typename Tg = string, typename Tm = std::vector<vector<int> > >
 	struct SplitData{
 
 		enum split_or_not{
@@ -53,12 +59,18 @@ namespace MyData {
 		bool is_map =true;
 		T train_features_;
 		T1 train_labels_;
+		Tm train_labels_mask_;
 
 		T test_features_;
 		T1 test_labels_;
+		Tm test_labels_mask_;
 
 		T validate_features_;
 		T1 validate_labels_;
+		Tm validate_labels_mask_;
+
+
+		vector<Tg> to_get;//the data that they want to get
 
 		std::vector<boost::posix_time::ptime> DateToIter;
 		std::multimap<boost::posix_time::ptime, std::vector<long double>> NonAdjustedSprdData;
@@ -68,6 +80,9 @@ namespace MyData {
 
 		template<typename T2, typename T3>
 		void FnlDataToStruct(T2 &data, T3 &labels, int TRTEVA,  split_or_not sp = split_data_only);
+
+		template<typename T2, typename T3, typename T4, typename T5>
+		void BuildIters(T2 &data, T3 &labels, T4 &id_labels_to_labels, T5 &masks, int TRTEVA, split_or_not split);
 
 		template<typename T2, typename T3>
 		void FnlDataToStructVector(T2 &data, T3 &labels, int TRTEVA);
