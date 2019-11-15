@@ -121,6 +121,7 @@ struct MyImages1{
 	 * cv::Mat data of image
 	 */
 	std::unordered_map<string, cv::Mat> image_data_;
+	std::unordered_map<string, cv::Mat>::iterator image_data_it_;
 	/*
 	 * string image_id
 	 *
@@ -229,6 +230,7 @@ public:
 	void ResNet50(T &data, T1 &data_it, MyData::ModelConfig &model_config);
 	void ConvertOnnx2Caffe2();
 	void RLEdecode(MyImages1 &my_images, string image_id,vector<string> &to_get, bool display_mask = false);
+	void ApplyMaskAndRezise( MyImages1 &my_images, string image_id, vector<string> &to_get, cv::Mat &jpgedat, vector<int> &new_shape, bool display_mask);
 	void RLEdecode(MyImages &my_images, string image_id,bool display_mask = false);
 	void GetImageData(MyImages1 &my_images, vector<string> &to_get);
 	void GetImageData(MyImages &my_images);

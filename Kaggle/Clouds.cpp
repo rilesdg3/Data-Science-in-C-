@@ -47,6 +47,9 @@ void Clouds::CloudsMain(){
 
 	tet.BuildIters(my_images.image_data_vector_,my_images.labels_,this->id_label_seperated,my_images.decoded_pixels_,0,tet.split_data_only);
 
+
+	//tet.BuildIters(my_images.decoded_pixels_,my_images.labels_,this->id_label_seperated,my_images.decoded_pixels_,0,tet.split_data_only);
+
 		MyData::ModelConfig model_config;
 
 		model_config.n_hide.push_back(1400*2100);
@@ -486,7 +489,7 @@ void Clouds::ResNet50( T &data, T1 &data_it, MyData::ModelConfig &model_config){
 	int n_features = 1400*2100;//data.train_features_[0].size();//this->base_features_[0].size();
 
 	float base_learning_rate = -.0002998;
-	int batch_size = 2;
+	int batch_size = 1;
 	int classes = 1;
 
 	std::cout << "Start training" << std::endl;
@@ -504,6 +507,7 @@ void Clouds::ResNet50( T &data, T1 &data_it, MyData::ModelConfig &model_config){
 				caffe2::ResNetModel res_model(init_model, predict_model);
 
 						res_model.Add(50, 4,true);
+				//res_model.Add(5, 100,true);
 
 						res_model.predict.net.DebugString();
 
@@ -546,11 +550,12 @@ void Clouds::ResNet50( T &data, T1 &data_it, MyData::ModelConfig &model_config){
 
 			CAFFE_ENFORCE(workspace.RunNetOnce(res_model.init.net));
 
-			CAFFE_ENFORCE(workspace.CreateNet(res_model.init.net));
+		//	CAFFE_ENFORCE(workspace.CreateNet(res_model.init.net));
 
 
+//			sometihing needs to output label so it can be inputed to the softmax
 
-		//CAFFE_ENFORCE(workspace.CreateNet(res_model.predict.net));
+		CAFFE_ENFORCE(workspace.CreateNet(res_model.predict.net));
 
 		auto epoch = 0;
 
@@ -635,15 +640,17 @@ void Clouds::ResNet50( T &data, T1 &data_it, MyData::ModelConfig &model_config){
 
 					id_label = data_it.train_features_[minibatch_index];
 					//decoded_pixels_label_it_ = decoded_pixels_.find()
-					id = this->id_labels_to_id.find(id_label)->second;
+					id = id_label;//this->id_labels_to_id.find(id_label)->second;
 					data.image_data_vector_it_ = data.image_data_vector_.find(id);
 					//out<<"data.image_data_vector_ "<<data.image_data_vector_<<endl;
 
 					cout<<"data.image_data_vector_.find(id)->second "<<data.image_data_vector_.find(id)->second<<endl;
 					cout<<"data.image_data_vector_it_->second "<<data.image_data_vector_it_->second<<endl;
 					{
-						std::vector<int> dim({nTrainBatches,data.image_data_vector_it_->second.size()});
-						caffe2::BlobUtil(*workspace.CreateBlob("data")).Set(dim, data.image_data_vector_it_->second, minibatch_index, false);
+						//std::vector<int> dim({nTrainBatches,data.image_data_vector_it_->second.size()});
+						int size = 224*224*3;
+						std::vector<int> dim({1,3,224,224});//std::vector<int> dim({1,3,224,224});
+						caffe2::BlobUtil(*workspace.CreateBlob("data")).Set(size, dim, data.image_data_vector_it_->second, false);
 					}
 
 					//data.labels_one_hot_it_ = data.labels_one_hot_.find(id_label);
@@ -652,15 +659,23 @@ void Clouds::ResNet50( T &data, T1 &data_it, MyData::ModelConfig &model_config){
 
 
 					{
-						std::vector<int> dim({nTrainBatches,1});
-						caffe2::BlobUtil(*workspace.CreateBlob("label")).Set(dim,data_it.train_labels_.find(id_label)->second, minibatch_index, false);
+						std::vector<int> dim({1});
+						caffe2::BlobUtil(*workspace.CreateBlob("label")).Set(dim,data_it.train_labels_.find(id_label)->second, 0, false);
+
+						//std::vector<int> dim({1});
+						//caffe2::BlobUtil(*workspace.CreateBlob("label")).Set(dim,data_it.train_labels_.find(id_label)->second, minibatch_index, false);
 
 						//std::cout<<"Train Label "<<caffe2::BlobUtil(*workspace.GetBlob("target")).Get().DebugString()<<std::endl;
 
 					}
 
 
+
+
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("label")).Get().data<int>()[0]<<endl;
+
 					CAFFE_ENFORCE(workspace.RunNet(res_model.predict.net.name()));//CAFFE_ENFORCE(workspace.RunNet(train.net.name()));
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("final_avg")).Get().DebugString()<<endl;
 
 					cout<<"res_model.init.net.DebugString() ";
 							res_model.init.net.DebugString();
@@ -680,11 +695,41 @@ void Clouds::ResNet50( T &data, T1 &data_it, MyData::ModelConfig &model_config){
 					//	cout<<"wLefore "<<wLefore<<" After "<< BlobUtil(*workspace.GetBlob("last_layer_w")).Get().data<float>()[0]<<endl;
 
 
-					cout<<caffe2::BlobUtil(*workspace.GetBlob("data")).Get().data<float>()[2]<<endl;
+							cout<<caffe2::BlobUtil(*workspace.GetBlob("data")).Get().data<float>()[0]<<endl;
+							cout<<caffe2::BlobUtil(*workspace.GetBlob("data")).Get().data<float>()[1]<<endl;
+							cout<<caffe2::BlobUtil(*workspace.GetBlob("data")).Get().data<float>()[2]<<endl;
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("data")).Get().data<float>()[3]<<endl;
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("data")).Get().data<float>()[4]<<endl;
 
 
 
-					train_score = caffe2::BlobUtil(*workspace.GetBlob("loss")).Get().data<int>()[0];// cout<<"Train Score "<<train_score<<endl;
+					train_score = caffe2::BlobUtil(*workspace.GetBlob("loss")).Get().data<float>()[0];
+
+					cout<<"Train Score "<<train_score<<endl;
+
+
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("softmax")).Get().data<float>()[0]<<endl;
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("softmax")).Get().data<float>()[1]<<endl;
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("softmax")).Get().data<float>()[2]<<endl;
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("softmax")).Get().data<float>()[3]<<endl;
+
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("label")).Get().data<int>()[0]<<endl;
+
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("pred")).Get().data<float>()[0]<<endl;
+					cout<<caffe2::BlobUtil(*workspace.GetBlob("argmax")).Get().data<long>()[0]<<endl;
+
+
+					if(caffe2::BlobUtil(*workspace.GetBlob("pred")).Get().data<float>()[0] >1)
+						cout<<"what"<<endl;
+
+					cout<<"comp_15_sum_3 "<<caffe2::BlobUtil(*workspace.GetBlob("comp_15_sum_3")).Get().DebugString()<<endl;
+					//cout<<caffe2::BlobUtil(*workspace.GetBlob("top-5")).Get().data<float>()[0]<<endl;
+					//cout<<caffe2::BlobUtil(*workspace.GetBlob("top-5")).Get().data<float>()[1]<<endl;
+					//cout<<caffe2::BlobUtil(*workspace.GetBlob("top-5")).Get().data<float>()[2]<<endl;
+					//cout<<caffe2::BlobUtil(*workspace.GetBlob("top-5")).Get().data<float>()[3]<<endl;
+
+
+
 
 					iter = (epoch - 1) * n_train_batches + minibatch_index;
 
@@ -820,6 +865,7 @@ void Clouds::RLEdecode( MyImages1 &my_images, string image_id, vector<string> &t
 	int col = 0;
 	int count = 0;
 	int n_pixel = 0;
+	int max_j_row = 0;
 	vector<int> deocded_tmp;//
 	uchar fu = '278';
 	//cout<<"fu "<< fu<<" float)fu "<<(float)fu<<endl;
@@ -857,12 +903,21 @@ void Clouds::RLEdecode( MyImages1 &my_images, string image_id, vector<string> &t
 			row = start - col*image_data.rows;
 			//cout<<start/image_data.rows*image_data.rows<<endl;
 
+			if(row < image_data.rows){
 			for(int j = 0; j<my_images.encoded_pixels_label_it_->second[k][my_images.num_pixels_]; ++j){
+				if(j+row >= image_data.rows)
+					break;
 				my_images.decoded_pixels_label_it_->second[n_pixel] = start+j;
 				++n_pixel;
 
-				if(display_mask == true){
+				//if(display_mask == true){
 					uchar *peg_ptr = image_data.ptr<uchar>(j+row);
+					//if(max_j_row < j+row){
+					//	max_j_row = j+row;
+					//cout<<"max_j_row "<<max_j_row<<endl;
+					//}
+					//string peg_string(reinterpret_cast<char *>(peg_ptr));
+					//cout<<sizeof(peg_ptr)<<" peg_ptr "<<peg_string<<endl;
 					peg_ptr[col*n_channels+1] =  (uchar)color;
 					/*for(int i = 0; i < image_data.total()*image_data.channels();i+=3){
 					if(image_data.data[i+1] == (uchar)color)
@@ -876,7 +931,8 @@ void Clouds::RLEdecode( MyImages1 &my_images, string image_id, vector<string> &t
 				cout<<(float)peg_ptr[col*n_channels+1]<<" "<<(float)image_data.data[row*col*n_channels+1]<<endl;
 				cout<<(float)peg_ptr[col*n_channels+1]<<" "<<(float)image_data.data[row*col*n_channels+2]<<endl;*/
 
-				}
+				//}
+			}
 			}
 
 		}
@@ -903,6 +959,163 @@ void Clouds::RLEdecode( MyImages1 &my_images, string image_id, vector<string> &t
 
 }
 
+
+/*
+ * @brief: performs run length decoding applys the mask and resizes
+ *
+ * @param: MyImages &my_images object that holds the image data
+ * @param: string image_id the id of the image we are decoding
+ * @param: bool display_mask to display the mask on the image or not default is false
+ *
+ */
+void Clouds::ApplyMaskAndRezise( MyImages1 &my_images, string image_id, vector<string> &to_get, cv::Mat &jpegdat, vector<int> &new_shape, bool display_mask){
+
+	int start = 0;
+	int color = 278;
+	int row = 0;
+	int col = 0;
+	int count = 0;
+	int n_pixel = 0;
+	int max_j_row = 0;
+	vector<int> deocded_tmp;//
+	std::vector<float> contents;
+
+	uchar fu = '278';
+	//cout<<"fu "<< fu<<" float)fu "<<(float)fu<<endl;
+	//cout<<"(float)color "<<(float)color<<endl;
+
+	//cv::Mat image_data; //=my_images.image_data_.find(image_id)->second;
+	int n_channels = jpegdat.channels();//image_data.channels();
+
+
+
+
+
+	//cout<<my_images.encoded_pixels_id_it_->first<<endl;
+
+	//cout<<"shape: cols "<<image_data.cols<<" rows "<<image_data.rows<<" step "<<image_data.step<< endl;
+
+	//my_images.encoded_pixels_label_id_  = my_images.encoded_pixels_id_it_->second.begin();
+	//my_images.decoded_pixels_label_id_  = my_images.decoded_pixels_id_it_->second.begin();
+	this->train_id_labels_names_it_ = this->train_id_labels_names_.find(image_id);
+	cout<<this->train_id_labels_names_it_->first<<endl;
+
+	for(auto labels = this->train_id_labels_names_it_->second.begin(); labels != this->train_id_labels_names_it_->second.end(); ++labels, ++count){
+
+		cv::Mat image_data = jpegdat.clone();
+
+		cout<<*labels<<endl;
+		to_get.push_back(*labels);
+		my_images.encoded_pixels_label_it_ = my_images.encoded_pixels_.find(*labels);
+		my_images.decoded_pixels_label_it_ = my_images.decoded_pixels_.find(*labels);
+
+
+
+		//cout<<my_images.decoded_pixels_label_it_->second<<endl;
+		my_images.decoded_pixels_label_it_->second.resize(my_images.decoded_pixels_label_it_->second[0]);
+		for(uint k = 0; k<my_images.encoded_pixels_label_it_->second.size(); ++k){
+			start = my_images.encoded_pixels_label_it_->second[k][my_images.start_pixel_];
+			my_images.decoded_pixels_label_it_->second[n_pixel] = start;
+			++n_pixel;
+			col = std::floor(start/image_data.rows);
+
+			row = start - col*image_data.rows;
+			//cout<<start/image_data.rows*image_data.rows<<endl;
+
+			if(row < image_data.rows){
+				for(int j = 0; j<my_images.encoded_pixels_label_it_->second[k][my_images.num_pixels_]; ++j){
+					if(j+row >= image_data.rows)
+						break;
+					my_images.decoded_pixels_label_it_->second[n_pixel] = start+j;
+					++n_pixel;
+
+					//if(display_mask == true){
+					uchar *peg_ptr = image_data.ptr<uchar>(j+row);
+					//if(max_j_row < j+row){
+					//	max_j_row = j+row;
+					//cout<<"max_j_row "<<max_j_row<<endl;
+					//}
+					//string peg_string(reinterpret_cast<char *>(peg_ptr));
+					//cout<<sizeof(peg_ptr)<<" peg_ptr "<<peg_string<<endl;
+					peg_ptr[col*n_channels+1] =  (uchar)color;
+					/*for(int i = 0; i < image_data.total()*image_data.channels();i+=3){
+					if(image_data.data[i+1] == (uchar)color)
+						cout<<"i "<< i<<" "<<(float)peg_ptr[col*n_channels+1]<<" "<<(float)image_data.data[i+1]<<" fu "<<float(fu)<<endl;
+				}
+				cout<<"row*3+col*n_channels "<<row*3+col*n_channels<<" "<<(float)peg_ptr[col*n_channels+1]<<" "<<(float)image_data.data[row*3+col]<<endl;
+				cout<<(float)peg_ptr[col*n_channels+1]<<" "<<(float)image_data.data[row*3+col+1]<<endl;
+				cout<<(float)peg_ptr[col*n_channels+1]<<" "<<(float)image_data.data[row*3+col+2]<<endl;
+
+				cout<<"row*col*n_channels "<<row*col*n_channels<<" "<<(float)peg_ptr[col*n_channels+1]<<" "<<(float)image_data.data[row*col*n_channels]<<endl;
+				cout<<(float)peg_ptr[col*n_channels+1]<<" "<<(float)image_data.data[row*col*n_channels+1]<<endl;
+				cout<<(float)peg_ptr[col*n_channels+1]<<" "<<(float)image_data.data[row*col*n_channels+2]<<endl;*/
+
+					//}
+				}
+			}
+
+		}
+		n_pixel = 0;
+		//break;
+
+		//cv::Mat shaped(224,224,jpegdat.type());
+		if(display_mask == true){
+					cv::imshow(*labels, image_data);
+
+					//cv::imwrite((image_id+".jpg"),image_data);
+
+					cv::waitKey(0);
+					cv::destroyWindow(*labels);
+				}
+
+		cv::Mat reshaped(new_shape[0],new_shape[1],jpegdat.type());
+		//jpegdat.resize(352);
+
+		cv::resize(image_data,reshaped,reshaped.size());
+		//cv::Mat reshaped = jpegdat.reshape(3,224);
+		cout<<"before reshape: rows "<<image_data.rows<<" cols "<<image_data.cols<<" size "<<image_data.size<<endl;
+		//image_data = image_data.reshape(0,new_shape);
+		cout<<"after reshape: rows "<<reshaped.rows<<" cols "<<reshaped.cols<<" size "<<reshaped.size<<endl;
+
+
+		contents.resize(reshaped.total()*reshaped.channels());
+
+		//uchar *jpg_ptr = jpegdat.data
+		for(int k = 0; k < reshaped.total()*reshaped.channels();++k){
+			contents[k] = (float)reshaped.data[k];
+		}
+
+
+		//my_images.image_data_vector_it_ = my_images.image_data_vector_.find(image_id);
+		my_images.image_data_vector_.insert(std::make_pair(*labels, contents));
+		//my_images.image_data_vector_.insert(std::make_pair(image_id, contents));
+		//cout<<my_images.image_data_vector_<<endl;
+		my_images.image_data_vector_it_ = my_images.image_data_vector_.find(*labels);
+		//cout<<my_images.image_data_vector_<<endl;
+		cout<<my_images.image_data_vector_it_->second<<endl;
+
+		//my_images.image_data_it_ = my_images.image_data_.find(image_id);
+		my_images.image_data_.insert(std::make_pair(*labels, reshaped));
+
+		if(display_mask == true){
+			cv::imshow(*labels, reshaped);
+
+			//cv::imwrite((image_id+".jpg"),image_data);
+
+			cv::waitKey(0);
+			cv::destroyWindow(*labels);
+		}
+
+
+	}
+
+
+
+
+
+
+
+}
 /*
  * Note, instead of using this I can just iterdir function/method for reading zip file and then parse out the char *contents into
  * 		a vector<vector<> >
@@ -947,11 +1160,14 @@ void Clouds::GetImageData(MyImages1 &my_images,  vector<string> &to_get){
 	long long int a =0;
 	char ac;
 	std::vector<float> contents;
+	std::vector<int> new_shape({224,224});
+
 	for(uint i = 0; i<this->train_imgs_filenames_.size();++i){
 
-		//while(this->train_imgs_filenames_[i].compare("0011165.jpg")!=0)
+		//while(this->train_imgs_filenames_[i].compare("1860780.jpg")!=0)
 		//	++i;
 
+		//--i;
 		std::vector<std::string> args;
 		args.push_back("-p");
 		args.push_back(this->train_imgs_path_);
@@ -971,21 +1187,15 @@ void Clouds::GetImageData(MyImages1 &my_images,  vector<string> &to_get){
 		fclose(infile);
 
 		cv::Mat jpegdat = cv::imread(tmp_path_and_filename.c_str());
-		cout<<jpegdat.size<<endl;
-
-		contents.resize(jpegdat.total()*jpegdat.channels());
-
-		//uchar *jpg_ptr = jpegdat.data
-		for(int k = 0; k < jpegdat.total()*jpegdat.channels();++k){
-			contents[k] = (float)jpegdat.data[k];
-		}
-
-
 
 		//cout<<contents[0]<<" "<<jpegdat.at<float>(0,0,0)<<endl;
 
 		image_id = this->train_imgs_filenames_[i].substr(0,this->train_imgs_filenames_[i].find_first_of("."));
-		//this->train_id_labels_names_.find(imag_id);
+
+		this->ApplyMaskAndRezise(my_images, image_id, to_get,jpegdat, new_shape,false);
+
+
+		/*//this->train_id_labels_names_.find(imag_id);
 		my_images.image_data_vector_.insert(std::make_pair(image_id, contents));
 		//cout<<my_images.image_data_vector_<<endl;
 		my_images.image_data_vector_it_ = my_images.image_data_vector_.find(image_id);
@@ -997,18 +1207,45 @@ void Clouds::GetImageData(MyImages1 &my_images,  vector<string> &to_get){
 
 		this->RLEdecode(my_images, image_id, to_get);
 
+		cout<<"before reshape: rows "<<jpegdat.rows<<" cols "<<jpegdat.cols<<" size "<<jpegdat.size<<endl;
+		jpegdat = jpegdat.reshape(0,new_shape);
+		cout<<"after reshape: rows "<<jpegdat.rows<<" cols "<<jpegdat.cols<<" size "<<jpegdat.size<<endl;
+
+
+		contents.resize(jpegdat.total()*jpegdat.channels());
+
+		//uchar *jpg_ptr = jpegdat.data
+		for(int k = 0; k < jpegdat.total()*jpegdat.channels();++k){
+			contents[k] = (float)jpegdat.data[k];
+		}
+
+
+		my_images.image_data_vector_it_ = my_images.image_data_vector_.find(image_id);
+		my_images.image_data_vector_.insert(my_images.image_data_vector_it_,std::make_pair(image_id, contents));
+		//my_images.image_data_vector_.insert(std::make_pair(image_id, contents));
+				//cout<<my_images.image_data_vector_<<endl;
+				my_images.image_data_vector_it_ = my_images.image_data_vector_.find(image_id);
+				//cout<<my_images.image_data_vector_<<endl;
+				cout<<my_images.image_data_vector_it_->second<<endl;
+
+				my_images.image_data_it_ = my_images.image_data_.find(image_id);
+				my_images.image_data_.insert(my_images.image_data_it_, std::make_pair(image_id, jpegdat));
+
+
+
+
 		for(int j = 0; j < jpegdat.total()*jpegdat.channels();++j){
 			if((uchar)contents[j] != jpegdat.data[j]){
 				cout<<j<<" (uchar)contents[j] "<<(float)contents[j]<<" jpegdat.data[j] "<<(float)jpegdat.data[j]<<endl;
 			}
 		}
-
+*/
 		cout<<my_images.decoded_pixels_.begin()->second.size()<<endl;
 
 
 		remove(tmp_path_and_filename.c_str());
 
-		if(i == 10)
+		if(i == 20)
 			break;
 
 
@@ -1252,14 +1489,19 @@ void Clouds::ParseTrainCSV(string filename, MyImages1 &my_images, int n_get){
 	vector<vector<string> > fnl_data;
 	std::multimap<string, vector<vector<int> > > tmp_map;
 	std::multimap<string, vector<int>> tmp_map_decoded;
-	vector<int> tmp_vect_decoded(1);
 
+	typedef const typename std::remove_reference<decltype(my_images.decoded_pixels_.begin()->second)>::type tmp_vect_decoded_type;
+	typename std::remove_reference<decltype(my_images.decoded_pixels_.begin()->second)>::type tmp_vect_decoded;
+
+	tmp_vect_decoded.resize(1);
+
+	std::multimap<string, std::multimap<string, tmp_vect_decoded_type > >::iterator  decoded_pixels_itr;
 	vector<string > id_and_label(2);
 	std::ifstream  data(filename);
 
 
 	std::multimap<string, std::multimap<string, vector<vector<int> > > >::iterator  encoded_pixels_itr;
-	std::multimap<string, std::multimap<string, vector<int> > >::iterator  decoded_pixels_itr;
+
 
 	std::string line;
 
@@ -1316,7 +1558,7 @@ void Clouds::ParseTrainCSV(string filename, MyImages1 &my_images, int n_get){
 				}
 				else if(tmp_vect.size()>=1){
 
-
+					if(tmp_vect.size()>100){
 					my_images.encoded_pixels_.insert(std::make_pair(id_labels, tmp_vect));
 					//encoded_pixels_itr = my_images1.encoded_pixels_.find(id);
 					//my_images.encoded_pixels_.insert(std::make_pair(id, tmp_map));
@@ -1343,6 +1585,7 @@ void Clouds::ParseTrainCSV(string filename, MyImages1 &my_images, int n_get){
 					//tmp_map_decoded.begin()->second.shrink_to_fit();
 					//tmp_map_decoded.clear();
 				}
+				}
 
 
 
@@ -1357,7 +1600,7 @@ void Clouds::ParseTrainCSV(string filename, MyImages1 &my_images, int n_get){
 		}
 
 		//make sure the labels is not blank
-		if(n_pixels_mask>0){
+		if(n_pixels_mask>0 &&tmp_vect.size()>100){
 			this->train_id_labels_names_it_ =this->train_id_labels_names_.find(id);
 			if(this->train_id_labels_names_it_ != this->train_id_labels_names_.end())
 				this->train_id_labels_names_it_->second.insert(id_labels);
