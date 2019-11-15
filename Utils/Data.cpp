@@ -604,7 +604,20 @@ template <typename T, typename T1, typename Tg, typename Tm>
 template<typename T2, typename T3, typename T4, typename T5>
 void SplitData<T, T1,Tg, Tm>::BuildIters(T2 &data, T3 &labels, T4 &id_label_seperated, T5 &masks, int TRTEVA, split_or_not split){
 
-	std::vector<int> labels_vect_tmp(labels.size());
+
+	cout<<"BuildIters"<<endl;
+
+	typedef const typename std::remove_reference<decltype(this->train_labels_)>::type tmp_vect_decoded_type;
+
+	int     status;
+			char   *realname;
+			//const std::type_info  &ti = typeid(tmp_vect.data());
+			const std::type_info  &ti = typeid(tmp_vect_decoded_type);
+			realname = abi::__cxa_demangle(ti.name(), 0, 0, &status);
+			cout<<realname<<endl;
+
+	std::vector<int> labels_vect_hot_tmp(labels.size());
+	std::vector<int> labels_vect_tmp(1);
 
 	int nRows = this->to_get.size();//data.size();
 
@@ -668,7 +681,8 @@ void SplitData<T, T1,Tg, Tm>::BuildIters(T2 &data, T3 &labels, T4 &id_label_sepe
 
 		int tmp_int = std::distance(labels.begin(), labels.find(label));
 
-		labels_vect_tmp[tmp_int] = 1;
+		labels_vect_tmp[0] = tmp_int;
+		labels_vect_hot_tmp[tmp_int] = 1;
 
 		switch(split){
 		case this->no_split:{
@@ -683,7 +697,7 @@ void SplitData<T, T1,Tg, Tm>::BuildIters(T2 &data, T3 &labels, T4 &id_label_sepe
 
 				//split_data.train_features_.push_back()
 				this->train_labels_.insert(std::make_pair(image_id, labels_vect_tmp));///TrainData.Labels.push_back(label);
-				//TrainData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->train_labels_one_hot_.insert(std::make_pair(image_id, labels_vect_hot_tmp));//TrainData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
 
 				this->train_features_[train_features_count]=image_id;//this->train_features_.push_back(image_id);
 				//train_features_itr = this->train_features_.find(image_id);
@@ -694,13 +708,14 @@ void SplitData<T, T1,Tg, Tm>::BuildIters(T2 &data, T3 &labels, T4 &id_label_sepe
 			}
 			else if(count>=testrange.first && count<testrange.second){
 				this->test_labels_.insert(std::make_pair(image_id, labels_vect_tmp));//TestData.Labels.push_back(label);
-				//TestData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->test_labels_one_hot_.insert(std::make_pair(image_id, labels_vect_hot_tmp));//TestData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
 				this->test_features_[test_features_count]=image_id;//TestData.Features.push_back(featureTemp);
 				++test_features_count;
 			}
-			else {
+			else if(count>=validrange.first && count<validrange.second)
+			{
 				this->validate_labels_.insert(std::make_pair(image_id, labels_vect_tmp));//ValidateData.Labels.push_back(label);
-				//ValidateData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->validate_labels_one_hot_.insert(std::make_pair(image_id, labels_vect_hot_tmp));//ValidateData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
 				this->validate_features_[validate_features_count]=image_id;//ValidateData.Features.push_back(featureTemp);
 				++validate_features_count;
 			}
@@ -712,19 +727,20 @@ void SplitData<T, T1,Tg, Tm>::BuildIters(T2 &data, T3 &labels, T4 &id_label_sepe
 
 				//split_data.train_features_.push_back()
 				this->train_labels_.insert(std::make_pair(image_id, labels_vect_tmp));///TrainData.Labels.push_back(label);
-				//TrainData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->train_labels_one_hot_.insert(std::make_pair(image_id, labels_vect_hot_tmp));//TrainData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
 				this->train_features_[train_features_count] =image_id;//TrainData.Features.push_back(featureTemp);
 				++train_features_count;
 			}
 			else if(count>=testrange.first && count<testrange.second){
 				this->test_labels_.insert(std::make_pair(image_id, labels_vect_tmp));//TestData.Labels.push_back(label);
-				//TestData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->test_labels_one_hot_.insert(std::make_pair(image_id, labels_vect_hot_tmp));//TestData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
 				this->test_features_[test_features_count] = image_id;//TestData.Features.push_back(featureTemp);
 				++test_features_count;
 			}
-			else {
+			else if(count>=validrange.first && count<validrange.second)
+			{
 				this->validate_labels_.insert(std::make_pair(image_id, labels_vect_tmp));//ValidateData.Labels.push_back(label);
-				//ValidateData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
+				this->validate_labels_one_hot_.insert(std::make_pair(image_id, labels_vect_hot_tmp));//ValidateData.LabelsHot.push_back(labelTemp);//labelTemp.push_back(label);
 				this->validate_features_[validate_features_count] = image_id;//ValidateData.Features.push_back(featureTemp);
 				++validate_features_count;
 			}
@@ -734,7 +750,7 @@ void SplitData<T, T1,Tg, Tm>::BuildIters(T2 &data, T3 &labels, T4 &id_label_sepe
 		}
 
 
-		labels_vect_tmp[tmp_int] = 0.0;
+		labels_vect_hot_tmp[tmp_int] = 0.0;
 		count++;
 	}
 
@@ -743,6 +759,8 @@ void SplitData<T, T1,Tg, Tm>::BuildIters(T2 &data, T3 &labels, T4 &id_label_sepe
 
 }
 template void SplitData<std::vector<string>,std::unordered_map<string,std::vector<int> > >::BuildIters<std::unordered_map<string, vector<float> >, std::set<string>, std::unordered_map<string, vector<string> >, std::unordered_map<string, vector<int> >  >(std::unordered_map<string, vector<float> > &, std::set<string> &, std::unordered_map<string, vector<string> > &, std::unordered_map<string, vector<int> > &,  int,split_or_not);
+template void SplitData<std::vector<string>,std::unordered_map<string,std::vector<int> > >::BuildIters<std::unordered_map<string, vector<float> >, std::set<string>, std::unordered_map<string, vector<string> >, std::unordered_map<string, vector<float> >  >(std::unordered_map<string, vector<float> > &, std::set<string> &, std::unordered_map<string, vector<string> > &, std::unordered_map<string, vector<float> > &,  int,split_or_not);
+
 //template void SplitData<std::vector<std::vector<float > >,std::vector< std::vector<float > >,std::vector<vector<int> >  >::FnlDataToStruct<std::multimap<string, vector<float> >,std::set<string>,std::multimap<string, std::multimap<string, vector<int> > > >(std::multimap<string, vector<float> > &, std::set<string> &, std::multimap<string, std::multimap<string, vector<int> > > &, int,split_or_not);
 
 

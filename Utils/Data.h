@@ -59,14 +59,17 @@ namespace MyData {
 		bool is_map =true;
 		T train_features_;
 		T1 train_labels_;
+		T1 train_labels_one_hot_;
 		Tm train_labels_mask_;
 
 		T test_features_;
 		T1 test_labels_;
+		T1 test_labels_one_hot_;
 		Tm test_labels_mask_;
 
 		T validate_features_;
 		T1 validate_labels_;
+		T1 validate_labels_one_hot_;
 		Tm validate_labels_mask_;
 
 
