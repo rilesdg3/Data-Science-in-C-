@@ -8,12 +8,12 @@
 #include "Stats.h"
 
 
-
+using namespace std;
 namespace Stats{
 
 
 template<typename T>
-std::map<std::string, double > CalcSimpleStats(vector<T > &data, Histogram &hist_st, int n_bins){
+std::map<std::string, double > CalcSimpleStats(vector<T > &data, Histogram &hist_st, int n_bins, bool show_stats){
 
 	int c = data.size();//data.size();//cache size for histogramm.
 
@@ -29,6 +29,7 @@ std::map<std::string, double > CalcSimpleStats(vector<T > &data, Histogram &hist
 	//bacc::stats<bacc::tag::median(bacc::with_density) > >
 	//    acc_median( bacc::density_cache_size = 4, bacc::density_num_bins = 4 );
 	std::map<std::string, std::function<double()> > stats {
+		{ "count",   [&wh_acc] () { return bacc::count(wh_acc);  }},
 		{ "min",   [&wh_acc] () { return bacc::min(wh_acc);  }},
 		{ "mean",  [&wh_acc] () { return bacc::mean(wh_acc); }},
 		{ "median", [&wh_acc] () { return bacc::median(wh_acc); }},
@@ -49,7 +50,7 @@ std::map<std::string, double > CalcSimpleStats(vector<T > &data, Histogram &hist
 	//fill accumulator
 	for (int j = 0; j < c; ++j)
 	{
-		myAccumulator((double)data[j]);
+		//why did I have this myAccumulator((double)data[j]);
 		wh_acc((double)data[j]);
 	}
 
@@ -66,18 +67,25 @@ std::map<std::string, double > CalcSimpleStats(vector<T > &data, Histogram &hist
 		total += hist[i].second;
 	}
 	//std::cout << "Total: " << total << std::endl; //should be 1 (and it is)
+
+	std::cout.precision(5);
 	for(auto key = stats.begin(); key != stats.end(); ++key){
 		my_stats[key->first] = key->second();
-		cout<<key->first<<" "<<key->second()<<" ";
+		if(show_stats){
+			cout<<key->first<<" "<<key->second()<<" ";
+		}
 	}
-	cout<<endl;
+	if(show_stats)
+		cout<<endl;
+
 
 	return my_stats;
 
 
 }
-template std::map<std::string, double > CalcSimpleStats<float>(vector<float > &, Histogram &, int);
-template std::map<std::string, double > CalcSimpleStats<double>(vector<double> &, Histogram &, int);
+template std::map<std::string, double > CalcSimpleStats<float>(vector<float > &, Histogram &, int, bool);
+template std::map<std::string, double > CalcSimpleStats<double>(vector<double> &, Histogram &, int, bool);
+template std::map<std::string, double > CalcSimpleStats<long double>(vector<long double> &, Histogram &, int, bool);
 
 /*
  * Plots a histogram
@@ -507,6 +515,266 @@ double ComputeV (Histogram &pred_hist_st, Histogram &target_hist_st)
 
 	return V ;
 }
+
+vector<vector<int> > Combinations(vector<int> iterable, int r){
+	//# combinations('ABCD', 2) --> AB AC AD BC BD CD
+	//# combinations(range(4), 3) --> 012 013 023 123
+	//CreateSets();
+
+	int max = *std::max(iterable.begin(),iterable.begin()+iterable.size()-1);
+	//auto pool = iterable;
+	int n = iterable.size();//len(pool)
+	vector<int >ranges;
+	vector<vector<int> > all_combinations;
+	vector<int > tmp(r);
+
+	if (r > n)
+		return all_combinations;
+	//indices = list(range(r))
+	vector<int> indices;
+	for(int it = 0; it<r; it++)
+		indices.push_back(it);
+
+	//yield tuple(pool[i] for i in indices)
+	for(auto it = 0; it < indices.size(); ++it)
+		tmp[it] = indices[it];//pool[it] = indices[it];
+	if(*std::max(tmp.begin(),tmp.begin()+tmp.size()-1)<=max)
+		all_combinations.push_back(tmp);
+
+	for(int i =0; i<r;++i)
+		ranges.push_back(i);
+
+	std::reverse(ranges.begin(),ranges.end());
+	int i= ranges[0];
+	while(indices[r-1]<n){
+		for(; i>ranges[ranges.size()-1]; --i){//in reversed(range(r)):
+			if(indices[i] != i + n - r)
+				break;
+		}
+		indices[i] += 1;
+
+		for(int j = i+1; j<r;++j)
+			indices[j] = indices[j-1] + 1;
+
+		for(auto it = 0; it < indices.size(); ++it)
+			tmp[it] = indices[it];//pool[it] = indices[it];
+		//cout<<"tmp "<<tmp<<endl;
+		//cout<<"indices "<<indices<<endl;
+		if(*std::max(tmp.begin(),tmp.begin()+tmp.size()-1)<=max)
+			all_combinations.push_back(tmp);
+		i= ranges[0];
+	}
+	//cout<<"tmp "<<tmp<<endl;
+	//cout<<"all_combinations "<<all_combinations[0]<<endl;
+	return all_combinations;
+}
+
+template<typename T>
+double Mean(std::vector<T> data, int start, int end){
+
+
+	std::vector<T> my_vector;
+	typename decltype(my_vector)::iterator myvectit;
+	std::vector<double>::iterator my_vector_iter;
+	//const std::type_info  &ti = typeid(tmp_vect);
+	//typedef typename T my_type;
+	//decltype(T) my_type;
+	//std::vector<decltype(T)>::iterator iter_begin = data.begin();
+	//std::vector<>::iterator it = v.begin();
+	//std::advance( it, index );
+	if(start != -1 && start != end){
+
+
+		//std::vector<my_type>::iterator iter_begin = data.begin();
+		//std::vector<double>::iterator iter_end;
+		//std::advance(iter_begin, start );
+		//std::advance( iter_end, iter_end);
+
+	}
+
+	return  boost::math::statistics::mean(data.begin(), data.end());
+}
+template double Mean<double>(std::vector<double>,int ,int );
+
+template<typename T>
+double StdDev(std::vector<T> data){
+
+	return std::sqrt(boost::math::statistics::variance(data.begin(), data.end()));
+}
+
+void two_samples_t_test_equal_sd(
+        double Sm1,
+        double Sd1,
+        unsigned Sn1,
+        double Sm2,
+        double Sd2,
+        unsigned Sn2,
+        double alpha)
+{
+   //
+   // Sm1 = Sample Mean 1.
+   // Sd1 = Sample Standard Deviation 1.
+   // Sn1 = Sample Size 1.
+   // Sm2 = Sample Mean 2.
+   // Sd2 = Sample Standard Deviation 2.
+   // Sn2 = Sample Size 2.
+   // alpha = Significance Level.
+   //
+   // A Students t test applied to two sets of data.
+   // We are testing the null hypothesis that the two
+   // samples have the same mean and that any difference
+   // if due to chance.
+   // See http://www.itl.nist.gov/div898/handbook/eda/section3/eda353.htm
+   //
+   using namespace std;
+   using namespace boost::math;
+
+   // Print header:
+   cout <<
+      "_______________________________________________\n"
+      "Student t test for two samples (equal variances)\n"
+      "_______________________________________________\n\n";
+   cout << setprecision(5);
+   cout << setw(55) << left << "Number of Observations (Sample 1)" << "=  " << Sn1 << "\n";
+   cout << setw(55) << left << "Sample 1 Mean" << "=  " << Sm1 << "\n";
+   cout << setw(55) << left << "Sample 1 Standard Deviation" << "=  " << Sd1 << "\n";
+   cout << setw(55) << left << "Number of Observations (Sample 2)" << "=  " << Sn2 << "\n";
+   cout << setw(55) << left << "Sample 2 Mean" << "=  " << Sm2 << "\n";
+   cout << setw(55) << left << "Sample 2 Standard Deviation" << "=  " << Sd2 << "\n";
+   //
+   // Now we can calculate and output some stats:
+   //
+   // Degrees of freedom:
+   double v = Sn1 + Sn2 - 2;
+   cout << setw(55) << left << "Degrees of Freedom" << "=  " << v << "\n";
+   // Pooled variance:
+   double sp = sqrt(((Sn1-1) * Sd1 * Sd1 + (Sn2-1) * Sd2 * Sd2) / v);
+   cout << setw(55) << left << "Pooled Standard Deviation" << "=  " << v << "\n";
+   // t-statistic:
+   double t_stat = (Sm1 - Sm2) / (sp * sqrt(1.0 / Sn1 + 1.0 / Sn2));
+   cout << setw(55) << left << "T Statistic" << "=  " << t_stat << "\n";
+   //
+   // Define our distribution, and get the probability:
+   //
+   students_t dist(v);
+   double q = cdf(complement(dist, fabs(t_stat)));
+   cout << setw(55) << left << "Probability that difference is due to chance" << "=  "
+      << setprecision(3) << scientific << 2 * q << "\n\n";
+   //
+   // Finally print out results of alternative hypothesis:
+   //
+   cout << setw(55) << left <<
+      "Results for Alternative Hypothesis and alpha" << "=  "
+      << setprecision(4) << fixed << alpha << "\n\n";
+   cout << "Alternative Hypothesis              Conclusion\n";
+   cout << "Sample 1 Mean != Sample 2 Mean       " ;
+   if(q < alpha / 2)
+      cout << "NOT REJECTED\n";
+   else
+      cout << "REJECTED\n";
+   cout << "Sample 1 Mean <  Sample 2 Mean       ";
+   if(cdf(dist, t_stat) < alpha)
+      cout << "NOT REJECTED\n";
+   else
+      cout << "REJECTED\n";
+   cout << "Sample 1 Mean >  Sample 2 Mean       ";
+   if(cdf(complement(dist, t_stat)) < alpha)
+      cout << "NOT REJECTED\n";
+   else
+      cout << "REJECTED\n";
+   cout << endl << endl;
+}
+
+void two_samples_t_test_unequal_sd(
+        double Sm1,
+        double Sd1,
+        unsigned Sn1,
+        double Sm2,
+        double Sd2,
+        unsigned Sn2,
+        double alpha)
+{
+   //
+   // Sm1 = Sample Mean 1.
+   // Sd1 = Sample Standard Deviation 1.
+   // Sn1 = Sample Size 1.
+   // Sm2 = Sample Mean 2.
+   // Sd2 = Sample Standard Deviation 2.
+   // Sn2 = Sample Size 2.
+   // alpha = Significance Level.
+   //
+   // A Students t test applied to two sets of data.
+   // We are testing the null hypothesis that the two
+   // samples have the same mean and that any difference
+   // if due to chance.
+   // See http://www.itl.nist.gov/div898/handbook/eda/section3/eda353.htm
+   //
+   using namespace std;
+   using namespace boost::math;
+
+   // Print header:
+   cout <<
+      "_________________________________________________\n"
+      "Student t test for two samples (unequal variances)\n"
+      "_________________________________________________\n\n";
+   cout << setprecision(5);
+   cout << setw(55) << left << "Number of Observations (Sample 1)" << "=  " << Sn1 << "\n";
+   cout << setw(55) << left << "Sample 1 Mean" << "=  " << Sm1 << "\n";
+   cout << setw(55) << left << "Sample 1 Standard Deviation" << "=  " << Sd1 << "\n";
+   cout << setw(55) << left << "Number of Observations (Sample 2)" << "=  " << Sn2 << "\n";
+   cout << setw(55) << left << "Sample 2 Mean" << "=  " << Sm2 << "\n";
+   cout << setw(55) << left << "Sample 2 Standard Deviation" << "=  " << Sd2 << "\n";
+   //
+   // Now we can calculate and output some stats:
+   //
+   // Degrees of freedom:
+   double v = Sd1 * Sd1 / Sn1 + Sd2 * Sd2 / Sn2;
+   v *= v;
+   double t1 = Sd1 * Sd1 / Sn1;
+   t1 *= t1;
+   t1 /=  (Sn1 - 1);
+   double t2 = Sd2 * Sd2 / Sn2;
+   t2 *= t2;
+   t2 /= (Sn2 - 1);
+   v /= (t1 + t2);
+   cout << setw(55) << left << "Degrees of Freedom" << "=  " << v << "\n";
+   // t-statistic:
+   double t_stat = (Sm1 - Sm2) / sqrt(Sd1 * Sd1 / Sn1 + Sd2 * Sd2 / Sn2);
+   cout << setw(55) << left << "T Statistic" << "=  " << t_stat << "\n";
+   //
+   // Define our distribution, and get the probability:
+   //
+   students_t dist(v);
+   double q = cdf(complement(dist, fabs(t_stat)));
+   cout << setw(55) << left << "Probability that difference is due to chance" << "=  "
+      << setprecision(3) << scientific << 2 * q << "\n\n";
+   //
+   // Finally print out results of alternative hypothesis:
+   //
+   cout << setw(55) << left <<
+      "Results for Alternative Hypothesis and alpha" << "=  "
+      << setprecision(4) << fixed << alpha << "\n\n";
+   cout << "Alternative Hypothesis              Conclusion\n";
+   cout << "Sample 1 Mean != Sample 2 Mean       " ;
+   if(q < alpha / 2)
+      cout << "NOT REJECTED\n";
+   else
+      cout << "REJECTED\n";
+   cout << "Sample 1 Mean <  Sample 2 Mean       ";
+   if(cdf(dist, t_stat) < alpha)
+      cout << "NOT REJECTED\n";
+   else
+      cout << "REJECTED\n";
+   cout << "Sample 1 Mean >  Sample 2 Mean       ";
+   if(cdf(complement(dist, t_stat)) < alpha)
+      cout << "NOT REJECTED\n";
+   else
+      cout << "REJECTED\n";
+   cout << endl << endl;
+}
+
+
+
 
 }
 

@@ -8,7 +8,13 @@
 #ifndef STATS_H_
 #define STATS_H_
 
-#include <ReadWriteNet.h>
+
+
+//#include <ReadWriteNet.h>
+#include <ReadWrite.h>
+#include "DataMine.h"
+#include <experimental/type_traits>
+//#include <type_traits>
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/count.hpp>
@@ -20,11 +26,18 @@
 #include <boost/accumulators/statistics/skewness.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/density.hpp>
+#include <boost/math/statistics/t_test.hpp>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 //#include <opencv2/plot.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+
+#include <algorithm>
+#include <numeric>
+#include <thread>
+#include <random>
+
 
 #include "cvplot.h"
 
@@ -66,11 +79,11 @@ struct Histogram {
 
 
 	template<typename T>
-	std::map<std::string, double > CalcSimpleStats(vector<T> &data,Histogram &hist_st, int n_bins = 10);
+	std::map<std::string, double > CalcSimpleStats(std::vector<T> &data,Histogram &hist_st, int n_bins = 10, bool show_stats = false);
 
-	void PlotHist(Histogram &hist_st, string file_path, string file_name);
+	void PlotHist(Histogram &hist_st, std::string file_path, std::string file_name);
 	template< typename T >
-	void PlotLine(std::vector<T> &data, string name);
+	void PlotLine(std::vector<T> &data, std::string name);
 	template< typename T >
 	void ComputeHistograms(std::vector<T> &data,Histogram &hist_st, int n_bins = 10);
 	template<typename T, typename T1>
@@ -82,6 +95,23 @@ struct Histogram {
 	template<typename T, typename T1>
 	double correlation(int var_num, std::vector<std::vector<T> > &data, std::vector<T1> &target);
 	double ComputeV (Histogram &pred_hist_st, Histogram &target_hist_st);
+	void two_samples_t_test_equal_sd(
+	        double Sm1,
+	        double Sd1,
+	        unsigned Sn1,
+	        double Sm2,
+	        double Sd2,
+	        unsigned Sn2,
+	        double alpha);
+
+	void two_samples_t_test_unequal_sd(
+	        double Sm1,
+	        double Sd1,
+	        unsigned Sn1,
+	        double Sm2,
+	        double Sd2,
+	        unsigned Sn2,
+	        double alpha);
 
 
 

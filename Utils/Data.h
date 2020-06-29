@@ -9,7 +9,8 @@
 #ifndef DATA_H_
 #define DATA_H_
 
-#include <ReadWriteNet.h>
+//#include <ReadWriteNet.h>
+#include <ReadWrite.h>
 #include <unordered_set>
 #include <limits>
 #include <numeric>
@@ -17,6 +18,7 @@
 #include <thread>
 #include <cxxabi.h>
 #include <unordered_map>
+#include <boost/lexical_cast.hpp>
 #define DATA_MAP 1
 
 namespace MyData {
@@ -47,7 +49,7 @@ namespace MyData {
 	 * 				default is a string
 	 * @tparam Tm: The labels mask, vector<vector< float> >
 	 */
-	template<typename T, typename T1, typename Tg = string, typename Tm = std::vector<vector<int> > >
+	template<typename T, typename T1, typename Tg = std::string, typename Tm = std::vector<std::vector<int> > >
 	struct SplitData{
 
 		enum split_or_not{
@@ -73,7 +75,7 @@ namespace MyData {
 		Tm validate_labels_mask_;
 
 
-		vector<Tg> to_get;//the data that they want to get
+		std::vector<Tg> to_get;//the data that they want to get
 
 		std::vector<boost::posix_time::ptime> DateToIter;
 		std::multimap<boost::posix_time::ptime, std::vector<long double>> NonAdjustedSprdData;
@@ -96,11 +98,13 @@ namespace MyData {
 
 
 
-	std::vector<float> VectorVectorStringToVectorFloat(std::vector<std::vector<string> > &data_in, int column);
+	std::vector<float> VectorVectorStringToVectorFloat(std::vector<std::vector<std::string> > &data_in, int column);
 
 
 	template< typename T, typename T1, typename T2, typename T3 >
 	void GroupBy(std::set<T> &set_2_convert,std::vector<std::vector<T1> > &data, T2 &grouped, int group_by_column, int set_column, T3 &var_columns);
+	template< typename T, typename T1, typename T2, typename T3 >
+	void GroupByAllNumeric(std::set<T> &set_2_convert,std::vector<std::vector<T1> > &data, T2 &grouped, int group_by_column, int set_column, T3 &var_columns);
 
 	template<typename T, typename T1 >
 	void GroupBy(T &data, T1 &grouped, int group_by_column, int value_column);
@@ -117,9 +121,9 @@ namespace MyData {
 
 	inline int ZeroOne(long double x);
 	inline int ZeroOneNegOne(long double x);
-	void NonAdjustedData(string fileName, std::multimap<boost::posix_time::ptime, std::vector<long double>> &Sprd);
-	void SprdData(string fileName, std::multimap<boost::posix_time::ptime, std::vector<long double>> &Sprd, bool ud=false, bool include_change=false);
-	void InputVar(string fileName, std::multimap<boost::posix_time::ptime, std::vector<long double>> &InpuVar,long double multiplier=1.00);
+	void NonAdjustedData(std::string fileName, std::multimap<boost::posix_time::ptime, std::vector<long double>> &Sprd);
+	void SprdData(std::string fileName, std::multimap<boost::posix_time::ptime, std::vector<long double>> &Sprd, bool ud=false, bool include_change=false);
+	void InputVar(std::string fileName, std::multimap<boost::posix_time::ptime, std::vector<long double>> &InpuVar,long double multiplier=1.00);
 
 	// the below use to be void Embed(..........
 		void EmbedNoReturn(std::multimap<boost::posix_time::ptime, std::vector<long double>> &data ,int m, int d, bool skip = false);
@@ -129,24 +133,24 @@ namespace MyData {
 
 	//template<typename T, typename T1>
 	struct ModelConfig{
-		string model_name = "what_what";//used as we are incrementing trying to get the best
+		std::string model_name = "what_what";//used as we are incrementing trying to get the best
 		float no_train_thresh = .55;//% accurcacy we would like to be > for non trained data
 		float all_thresh = .55;//% accurcacy we would like to be > for all the data
-			string *model_name_ptr = &model_name;
+		std::string *model_name_ptr = &model_name;
 
-		inline string init_model_name(){return "init"+this->model_name;}
-		string final_model_name = "what_final";//the best model achieved for this configuration
+		inline std::string init_model_name(){return "init"+this->model_name;}
+		std::string final_model_name = "what_final";//the best model achieved for this configuration
 		//what about multiple model paths, for different neural networks and xgboost
-		string model_path = "/home/ryan/workspace/ModelAnalizeCompareC2/";
-		string data_path = "/home/ryan/workspace/ModelAnalizeCompareC2/";
+		std::string model_path = "/home/ryan/workspace/ModelAnalizeCompareC2/";
+		std::string data_path = "/home/ryan/workspace/ModelAnalizeCompareC2/";
 		int TRTEVA = 0;
-		string feature_vars;
-		string spread_filename ="Sprdfilename.csv";
-		string activation;
+		std::string feature_vars;
+		std::string spread_filename ="Sprdfilename.csv";
+		std::string activation;
 		int n_classes =2;
 		int vc = 0;
 		int n_features = 0;
-		string chart_path = data_path+"PnLCharts/";
+		std::string chart_path = data_path+"PnLCharts/";
 		std::vector<int> n_hide;
 		/* this is to be deleted when n_hide vector is implemented
 			int n_hide = 0;

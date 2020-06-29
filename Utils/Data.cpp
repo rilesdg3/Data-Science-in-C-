@@ -9,6 +9,8 @@
 
 
 
+using namespace std;
+
 
 /* @brief
  * A collection of Functions that converts data
@@ -319,6 +321,8 @@ std::vector<double> AlignedYvectWithEmbedX(std::multimap<double, std::vector<flo
 
 
 /*
+ * NOTE: data must be a string and this will convert it to numeric as it groups by
+ *
  * @brief: uses a map to put data into groups, were each group can have multiple sets of variables associated with it. were one variable
  * represents an index to a set of strings, in short this creates a one hot encoding for that variable
  *
@@ -376,6 +380,68 @@ void GroupBy(std::set<T> &set_2_convert,std::vector<std::vector<T1> > &data, T2 
 template void GroupBy<string, string, map<string, vector<vector<double> > > >(std::set<string> &, std::vector<std::vector<string > > &, map<string, vector<vector< double> > > &, int,int,std::set<int> &);
 template void GroupBy<string, string, map<string, vector<vector<double> > > >(std::set<string> &, std::vector<std::vector<string > > &, map<string, vector<vector< double> > > &, int,int,std::unordered_set<int> &);
 template void GroupBy<string, string, map<string, vector<vector<double> > > >(std::set<string> &, std::vector<std::vector<string > > &, map<string, vector<vector< double> > > &, int,int,vector<int> &);
+
+/*
+ * NOTE data variable must be all numeric
+ *
+ * @brief: uses a map to put data into groups, were each group can have multiple sets of variables associated with it. were one variable
+ * represents an index to a set of strings, in short this creates a one hot encoding for that variable
+ *
+ * @tparam set<T> &set_2_convert: A set of variables that need to be converted
+ * @tparam vector<vector<T1> &data: The input data that contains the variables
+ * @tparam T2 &grouped: The container that we are putting the grouped by and converted into
+ * @param int group_by_column: The column number of variable that we are grouping by
+ * @param int set_column: The column number in the data vector for the data found in groups that we are converting
+ * @param set<int> var_columns: The columns to be used as variables
+ *
+ */
+template< typename T, typename T1, typename T2, typename T3 >
+void GroupByAllNumeric(std::set<T> &set_2_convert,std::vector<std::vector<T1> > &data, T2 &grouped, int group_by_column, int set_column, T3 &var_columns){
+
+	//auto set_it = set_2_convert.begin();
+
+	string group_by_string;
+
+	decltype(grouped.begin()->second) tmp_vect;
+
+	int     status;
+	char   *realname;
+	//const std::type_info  &ti = typeid(tmp_vect.data());
+	const std::type_info  &ti = typeid(tmp_vect);
+	realname = abi::__cxa_demangle(ti.name(), 0, 0, &status);
+	cout<<realname<<endl;
+	string type = realname;
+
+	int count=0;
+
+	if(string(realname).find("double")!= std::string::npos){
+
+		std::vector<T1> tmp_vect(var_columns.size());
+
+		//uint data_it = 0; data_it <data.size(); ++data_it
+		for(auto data_it : data ){
+			for(auto it = var_columns.begin(); it!= var_columns.end(); ++it){
+				if(*it != group_by_column){
+					if(*it == set_column)
+						tmp_vect[count]=(double)std::distance(set_2_convert.begin(),set_2_convert.find(data_it[*it]));
+					else
+						tmp_vect[count] =data_it[*it];
+				}
+				count++;
+			}
+			grouped[data_it[group_by_column]].push_back(tmp_vect);
+			count=0;
+		}
+	}
+
+
+
+
+}
+template void GroupByAllNumeric<long double, long double, map<long double, vector<vector<long double> > > >(std::set<long double> &, std::vector<std::vector<long double > > &, map<long double, vector<vector< long double> > > &, int,int,vector<int> &);
+
+
+
 
 /*
  * @brief: converts everything into a map<type, vector<double> >
@@ -960,137 +1026,6 @@ inline int ZeroOneNegOne(long double x){
 }
 
 
-/*don't think this function is being used*/
-void NonAdjustedData(string fileName, std::multimap<boost::posix_time::ptime, std::vector<long double>> &Sprd){
-
-/*	ReadWrite r("DIF23F25","/home/ryan/workspace/adsf/","BookStats_DI1F22_201500814");
-	//std::multimap<boost::posix_time::ptime, std::vector<long double>> AllData.NonAdjustedSprdData;
-	r.GetBBO(AllData.NonAdjustedSprdData, fileName);
-
-	std::multimap<boost::posix_time::ptime, std::vector<long double>>::iterator cBegin = AllData.NonAdjustedSprdData.begin();
-	std::multimap<boost::posix_time::ptime, std::vector<long double>>::iterator cEnd = AllData.NonAdjustedSprdData.end();
-	cEnd--;
-	cout<<"SprdData cEnd "<<cEnd->first<<endl;
-	long double lastPrice = cEnd->second[0];
-	long double diff = 0.0000000000000000;
-	boost::posix_time::ptime date;
-
-	//std::multimap<boost::posix_time::ptime, std::vector<long double>> Sprd;
-	std::vector<long double> tmpVect;
-	date = cEnd->first;
-	cEnd--;
-	for( ; cBegin != cEnd; cEnd++){
-		// don;t know fi this can go here AllData.DateToIter.push_back(cBegin->first);
-	}
-
-	std::multimap<boost::posix_time::ptime, std::vector<long double>>::iterator a;
-	for(a = Sprd.begin(); a!=Sprd.end(); a++ ){
-		cout<<a->first<<" "<<a->second[0]<<" "<<a->second[1]<<endl;
-
-	}*/
-
-}
-
-/*
- * @brief reads data from a csv file and differences the data
- *
- * @param string fileName
- * @param multimap<ptime, vector<long double> keys are dates and vector data were [0] is the price
- * @param ud bool: if true don't not use the spread price
- * @param include_change: if true put day to day change in vector
- *
- */
-void SprdData(string fileName, std::multimap<boost::posix_time::ptime, std::vector<long double>> &Sprd, bool ud, bool include_change){
-
-	ReadWrite r("DIF23F25","/home/ryan/workspace/adsf/","BookStats_DI1F22_201500814");
-	std::multimap<boost::posix_time::ptime, std::vector<long double>> data;
-	r.GetBBO(data, fileName);
-
-	std::multimap<boost::posix_time::ptime, std::vector<long double>>::iterator cBegin = data.begin();
-	std::multimap<boost::posix_time::ptime, std::vector<long double>>::iterator cEnd = data.end();
-	cEnd--;
-	//cout<<"SprdData cEnd "<<cEnd->first<<endl;
-	long double lastPrice = cEnd->second[0];
-	long double diff = 0.0000000000000000;
-	boost::posix_time::ptime date;
-
-	//std::multimap<boost::posix_time::ptime, std::vector<long double>> Sprd;
-	std::vector<long double> tmpVect;
-	date = cEnd->first;
-	cEnd--;
-	for( ; cEnd != cBegin; cEnd--){
-
-		diff = lastPrice - cEnd->second[0];
-		if(!std::isnan(diff)){
-			if(ud == false)
-				tmpVect.push_back(cEnd->second[0]);
-				//tmpVect.push_back(lastPrice);//putting cEnd->second[0] instead of lastPrice shifts the prices forward  FnlBinDailyData=pandi.concat([pandi.DataFrame(SprdDaily.index[-(sprdembed.index.size-1):]),sprdembed[:-1],pandi.DataFrame(np.array(binned))],axis=1,ignore_index=True)
-			//???????????????????/  should I add
-			//else
-			//	tmpVect.push_back(std::NAN);#include <math.h> for std::NAN
-
-			tmpVect.push_back(ZeroOne(diff));
-			//tmpVect.push_back(ZeroOneNegOne(diff));
-			if(include_change == true)
-				tmpVect.push_back(diff);
-			Sprd.insert(std::pair<boost::posix_time::ptime, std::vector<long double>>
-					(date,tmpVect));
-			//AllData.DateToIter.insert(AllData.DateToIter.begin(), date);
-		}
-		lastPrice = cEnd->second[0];
-		date = cEnd->first;
-		//cout<<"SprdData cEnd "<<cEnd->first<<endl;
-		tmpVect.clear();
-	}
-
-	int counter =0;
-	std::multimap<boost::posix_time::ptime, std::vector<long double>>::iterator a;
-	/*for(a = Sprd.begin(); a!=Sprd.end(); a++ ){
-		cout<<" SprdDate "<<a->first<<" "<<a->second[0]<<" "<<a->second[1]<<endl;
-		counter++;
-	}*/
-
-}
-
-void InputVar(string fileName, std::multimap<boost::posix_time::ptime, std::vector<long double>> &InpuVar, long double multiplier){
-
-	ReadWrite r("DIF23F25","/home/ryan/workspace/adsf/","BookStats_DI1F22_201500814");
-	std::multimap<boost::posix_time::ptime, std::vector<long double>> data;
-	r.GetBBO(data, fileName);
-
-	std::multimap<boost::posix_time::ptime, std::vector<long double>>::iterator cBegin = data.begin();
-	std::multimap<boost::posix_time::ptime, std::vector<long double>>::iterator cEnd = data.end();
-	cEnd--;
-	//cout<<"SprdData cEnd "<<cEnd->first<<endl;
-	long double lastPrice = cEnd->second[0];
-	long double diff = 0.0000000000000000;
-	boost::posix_time::ptime date;
-
-	//std::multimap<boost::posix_time::ptime, std::vector<long double>> Sprd;
-	std::vector<long double> tmpVect;
-	date = cEnd->first;
-	cEnd--;
-	for( ; cEnd != cBegin; cEnd--){
-		diff = lastPrice - cEnd->second[0];
-		if(!std::isnan(diff)){
-			tmpVect.push_back(cEnd->second[0]*multiplier);//putting cEnd->second[0] instead of lastPrice shifts the prices forward  FnlBinDailyData=pandi.concat([pandi.DataFrame(SprdDaily.index[-(sprdembed.index.size-1):]),sprdembed[:-1],pandi.DataFrame(np.array(binned))],axis=1,ignore_index=True)
-			//tmpVect.push_back(ZeroOneNegOne(diff));
-			InpuVar.insert(std::pair<boost::posix_time::ptime, std::vector<long double>>
-					(date,tmpVect));
-		}
-		lastPrice = cEnd->second[0];
-		date = cEnd->first;
-		//cout<<"InputVar cEnd "<<cEnd->first<<endl;
-		tmpVect.clear();
-	}
-
-	std::multimap<boost::posix_time::ptime, std::vector<long double>>::iterator a;
-	/*for(a = InpuVar.begin(); a!=InpuVar.end(); a++ ){
-		cout<<a->first<<" "<<a->second[0]<<" "<<a->second[0]<<" vector size "<<a->second.size()<<endl;
-
-	}*/
-
-}
 
 /*
  * @brief: performs time delay embedding, inserting the delays right into the data passed in
@@ -1163,6 +1098,7 @@ void Print(std::multimap<boost::posix_time::ptime, std::vector<long double>> &da
 	}
 
 }
+
 
 
 }
