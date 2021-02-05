@@ -5,6 +5,7 @@
  *      Author: ryan
  */
 
+#include "Data.h"
 #include "Stats.h"
 
 
@@ -68,17 +69,29 @@ std::map<std::string, double > CalcSimpleStats(vector<T > &data, Histogram &hist
 	}
 	//std::cout << "Total: " << total << std::endl; //should be 1 (and it is)
 
+	auto p = std::cout.precision();
 	std::cout.precision(5);
 	for(auto key = stats.begin(); key != stats.end(); ++key){
 		my_stats[key->first] = key->second();
-		if(show_stats){
-			cout<<key->first<<" "<<key->second()<<" ";
-		}
+		//if(show_stats){
+		//	cout<<key->first<<" "<<key->second()<<" "<<std::endl;
+		//}
 	}
-	if(show_stats)
-		cout<<endl;
+	//if(show_stats)
+	//	cout<<endl;
+
+	if(show_stats){
+		std::map<std::string, std::function<double()> >::iterator key;
+		for(key = stats.begin(); key != stats.end(); ++key){
+			std::cout<<key->first<<" "<<key->second()<<std::endl;
+		}
+
+	}
 
 
+	//stats = clear_stats;
+
+	std::cout.precision(p);
 	return my_stats;
 
 
@@ -97,6 +110,7 @@ void PlotHist(Histogram &hist_st, string file_path, string file_name){
 
 	//cvplot::Window::current("cvplot demo").offset({60, 100});
 
+/*
 	{
 		auto name = file_name;//"simple";
 		//cvplot::setWindowTitle(name, "histogram");
@@ -115,6 +129,7 @@ void PlotHist(Histogram &hist_st, string file_path, string file_name){
 		figure.save(file_path,file_name);
 		figure.clear();
 	}
+*/
 
 
 	//cv::waitKey(0);
@@ -128,6 +143,7 @@ void PlotLine(std::vector<T> &data, string name){
 
 	//cvplot::Window::current("cvplot demo").offset({60, 100});
 
+/*
 	{
 		//auto name = "simple";
 		//cvplot::setWindowTitle(name, "line");
@@ -148,6 +164,7 @@ void PlotLine(std::vector<T> &data, string name){
 		figure.clear();
 	}
 
+*/
 
 	//cv::waitKey(0);
 }
@@ -772,6 +789,812 @@ void two_samples_t_test_unequal_sd(
       cout << "REJECTED\n";
    cout << endl << endl;
 }
+
+/*
+ * @brief: iteate through an array looking for nan values.
+ * @note: since I use nan to mark a missing value I need to search vector<string> as well
+ *
+ */
+template<typename T>
+void CountNANs(std::vector<T> &data, std::vector<int> &nan_location){
+
+
+	if(typeid(T) != typeid(std::string)){
+		for(uint i = 0; i<data.size()-1; ++i){
+			if(data[i] != data[i])
+				nan_location.push_back(i);
+
+		}
+	}
+
+}
+template void CountNANs<double>(std::vector<double> &, std::vector<int> &);
+template void CountNANs<long double>(std::vector<long double> &, std::vector<int> &);
+
+template<>
+void CountNANs(std::vector<std::string> &data, std::vector<int> &nan_location){
+
+		std::string my_nan = "nan";
+		for(uint i = 0; i<data.size(); ++i){
+			if(data[i].compare(my_nan) == 0)
+				nan_location.push_back(i);
+
+		}
+
+}
+
+/*
+ * @brief: iter through an array looking for nan values.
+ * @note: since I use nan to mark a missing value I need to search vector<string> as well
+ *
+ */
+template<typename T>
+void CountNANs(std::vector<std::vector<T> > &data, std::vector<int> &nan_location){
+
+
+	/*if(typeid(T) != typeid(std::string)){
+		for(int i = 0; i<data.size(); ++i){
+			if(data[i] != data[i])
+				nan_location.push_back(i);
+
+		}
+	}
+	 */
+
+}
+template void CountNANs<double>(std::vector<std::vector<double> >&, std::vector<int> &);
+template void CountNANs<long double>(std::vector<std::vector<long double> >&, std::vector<int> &);
+
+template<>
+void CountNANs(std::vector<std::vector<std::string> > &data, std::vector<int> &nan_location){
+
+
+	/*if(typeid(T) == typeid(std::string)){
+
+		for(int i = 0; i<data.size(); ++i){
+			if(data[i] == "nan")
+				nan_location.push_back(i);
+
+		}
+	}*/
+
+}
+
+template<typename T>
+bool myfunction (T i, T j) {
+	return (i==j);
+}
+
+
+/*
+ * TODO add plot, check if should std::map<string,...> should be std::map<T,...>name_count
+ *
+ * @brief: 	Get's UniqueCounts for data in vector<T>, stores them in value_count if a value is alread stored in value_count
+ * 			then the new value is added to the previous count
+ *
+ * @tparam 	data: 			the data
+ * @param	value_count: 	holds the unique value and counts the # of occurrences
+ * @param	skip_nan:		true if you do not want to count nan-> default = true
+ * @param	cumulative:		default = ??? true to display the results of value_count which may contain counts from previous calls to this function
+ *
+ */
+template<typename T>
+void GetUniqueCounts(std::vector<T> &data, std::map<T, int> &value_count,bool skip_nan, bool cumulative){
+
+	std::map<T, int> my_value_count;
+	typename std::map<T, int>::iterator my_value_count_iter;
+	int my_count = 0;
+	std::vector<T> myvector (data);
+	if(skip_nan){
+		MyData::RemoveNANs(myvector);
+		myvector.shrink_to_fit();
+	}
+	std::vector<T> unique_copy(myvector.size());
+
+
+
+	std::sort (myvector.begin(),myvector.end());
+
+	typename std::vector<T>::iterator it;
+	it=std::unique_copy (myvector.begin(),myvector.end(),unique_copy.begin());
+
+	unique_copy.resize(std::distance(unique_copy.begin(),it));
+	unique_copy.shrink_to_fit();
+	std::cout<<"N_Unique Values: "<<unique_copy.size()<<std::endl;
+	std::cout <<"Name:	";
+	for(typename std::vector<T>::iterator iter=unique_copy.begin(); iter!=unique_copy.end(); ++iter){
+		my_count = std::count(myvector.begin(), myvector.end(), *iter);
+
+		if(value_count.find(*iter) != value_count.end()){
+			my_count += value_count[*iter];
+			my_value_count[*iter] = my_count;//need to put in count
+			value_count[*iter] = my_count;//need to put in count
+		}
+		else{
+			my_value_count[*iter] = my_count;//need to put in count
+			value_count[*iter] = my_count;
+		}
+
+		std::cout<<*iter<<",";
+	}
+	std::cout<<std::endl;
+	//std::cout<<"i "<<i<<std::endl;
+	int total=0;
+	std::cout<<"Count:	";
+	for(auto it:my_value_count){
+		std::cout<<it.second<<",";
+		total += it.second;
+	}
+	std::cout<<std::endl;
+	std::cout<<"Percent: ";
+	auto p = std::cout.precision();
+	std::cout.precision(3);
+	for(auto it:my_value_count){
+		std::cout<<(double)it.second/(double)total<<",";
+	}
+	std::cout<<std::endl;
+	std::cout.precision(p);
+	std::cout<<"Total:	"<<total<<std::endl;;
+	std::cout<<std::endl;
+
+
+
+}
+template void GetUniqueCounts<double>(std::vector<double> &, std::map<double, int> &, bool , bool);
+template void GetUniqueCounts<long double>(std::vector<long double> &, std::map<long double, int> &, bool , bool);
+
+template<>
+void GetUniqueCounts(std::vector<std::string> &data, std::map<std::string, int> &value_count, bool skip_nan, bool cumulative){
+
+	std::map<std::string, int> my_value_count;
+	typename std::map<std::string, int>::iterator my_value_count_iter;
+	int my_count = 0;
+	std::vector<std::string> myvector (data);
+	if(skip_nan){
+		MyData::RemoveNANs(myvector);
+		myvector.shrink_to_fit();
+	}
+	std::vector<std::string> unique_copy(myvector.size());
+
+
+
+	std::sort (myvector.begin(),myvector.end());
+
+	typename std::vector<std::string>::iterator it;
+	it=std::unique_copy (myvector.begin(),myvector.end(),unique_copy.begin());
+
+	unique_copy.resize(std::distance(unique_copy.begin(),it));
+	std::cout<<"N_Unique Values: "<<unique_copy.size()<<std::endl;;
+	std::cout <<"Name:	";
+	for(typename std::vector<std::string>::iterator iter=unique_copy.begin(); iter!=unique_copy.end(); ++iter){
+		my_count = std::count(myvector.begin(), myvector.end(), *iter);
+		if(value_count.find(*iter) != value_count.end()){
+			my_count += value_count[*iter];
+			my_value_count[*iter] = my_count;//need to put in count
+			value_count[*iter] = my_count;//need to put in count
+		}
+		else{
+			my_value_count[*iter] = my_count;//need to put in count
+			value_count[*iter] = my_count;
+		}
+
+		std::cout<<*iter<<",";
+	}
+	std::cout<<std::endl;
+
+	int total=0;
+	std::cout<<"Count:	";
+	for(auto it:my_value_count){
+		std::cout<<it.second<<",";
+		total += it.second;
+	}
+	std::cout<<std::endl;
+	std::cout<<"Percent: ";
+	auto p = std::cout.precision();
+	for(auto it:my_value_count){
+		std::cout<<std::setprecision(3)<<(double)it.second/(double)total<<",";
+	}
+	std::cout.precision(p);
+	std::cout<<std::endl;
+	std::cout<<"Total:	"<<total<<std::endl;;
+	std::cout<<std::endl;
+}
+template void GetUniqueCounts<std::string>(std::vector<std::string> &, std::map<std::string, int> &, bool, bool);
+
+
+/*
+ * @brief: iterate through vector<vector<T> > and call GetUniqueCounts
+ *
+ */
+template<typename T>
+void GetUniqueCounts(std::vector<std::vector<T> > &data, std::initializer_list<int> &columns_to_get, std::map<T, int> &value_count, bool skip_nan, bool cumulative){
+
+	for(auto it:columns_to_get){
+		GetUniqueCounts(data[it],value_count, skip_nan, cumulative);
+
+	}
+
+}
+template void GetUniqueCounts<double>(std::vector<std::vector<double> > &, std::initializer_list<int> &, std::map<double, int> &, bool, bool);
+template void GetUniqueCounts<long double>(std::vector<std::vector<long double> > &, std::initializer_list<int> &, std::map<long double, int> &, bool, bool);
+
+
+/*
+ * @brief: 	uses the scipy implementation of the lomb-scargle, but it converts frequencies into angular frequencies, and give the option to center values and
+ * 			normalize the periodogram, autopower is based off of astropy autopower method
+ * @tparam:	vector<T> 	times:			times corresponding to data in values
+ * @tparam:	vector<T1>	values:			measurement values
+ * @tparam:	vector<T2>	frequencies:	frequencies for output of periodogram
+ * @param:	bool 		center_data:	default = true: subtract the mean
+ * @param:	string 		normalization:	default = standard: standardize the periodogram
+ *
+ *
+ *
+ */
+
+template<typename T, typename T1, typename T2>
+std::vector<double> LombScargle(std::vector<T> &times, const std::vector<T1> &values, std::vector<T2> &frequencies, bool center_data , std::string normalization){
+
+
+	if(times.size()!= values.size())
+		std::cerr<<"LombScargle times.size() != values.size()"<<std::endl;
+
+
+	std::vector<double> periodogram(frequencies.size());
+
+	double c_ = 0.0000;
+	double s_ = 0.0000;
+
+	double xc = 0.0000;//times_cos
+	double xs = 0.0000;//times_sin
+	double cc = 0.0000;
+	double ss = 0.0000;
+	double cs = 0.0000;
+	double tau = 0.0000;
+
+	double c_tau = 0.000;
+	double s_tau = 0.000;
+	double c_tau2 = 0.000;
+	double s_tau2 = 0.000;
+	double cs_tau = 0.000;
+
+	double tmp = 0.000;
+	double tmp1 = 0.000;
+	double tmp2 = 0.000;
+	double tmp3 = 0.000;
+
+
+	double yy = 0.0000;
+	int normalize = 0;
+
+	std::vector<T1> my_values = values;
+
+	if(center_data){
+		double mean = boost::math::statistics::mean(my_values.begin(),my_values.end());
+		for_each(my_values.begin(),my_values.end(), [mean](double &i){ i=i-mean;}   );
+	}
+
+	if(normalization.compare("standard") == 0){
+		for_each(my_values.begin(),my_values.end(), [&yy](T1 &i){ yy+=std::pow(i,2);});
+		yy/=my_values.size();
+		normalize = 1;
+
+	}
+	//double var = boost::math::statistics::variance(my_values.begin(),my_values.end());
+
+	//agular frequinces
+	double pi=3.1415926535897932384626433832795029l;
+	for_each(frequencies.begin(),frequencies.end(),[pi](double &i){i=i*pi*2;});
+
+	for(uint i = 0; i< frequencies.size(); ++i){
+
+		xc = 0.0000;
+		xs = 0.0000;
+		cc = 0.0000;
+		ss = 0.0000;
+		cs = 0.0000;
+
+		for(uint k = 0; k<times.size(); ++k){
+			c_ = std::cos(frequencies[i]*times[k]);
+			s_ = std::sin(frequencies[i]*times[k]);
+			xc += my_values[k]*c_;
+			xs += my_values[k]*s_;
+			cc += c_*c_;
+			ss += s_*s_;
+			cs += c_*s_;
+		}
+
+		//std::cout<<c_<<" "<<s_<<" "<<xc<<" "<<xs<<" "<<cc<<" "<<ss<<" "<<cs<<std::endl;
+
+		tau = ::atan2(2*cs,cc-ss)/(2*frequencies[i]);
+
+		c_tau = std::cos(frequencies[i] * tau);
+		s_tau = std::sin(frequencies[i] * tau);
+		c_tau2 = c_tau * c_tau;
+		s_tau2 = s_tau * s_tau;
+		cs_tau = 2 * c_tau * s_tau;
+		//std::cout<<c_tau<<" "<<s_tau<<" "<<c_tau2<<" "<<s_tau2<<" "<<cs_tau<<std::endl;
+
+		tmp = (c_tau * xc + s_tau * xs)*(c_tau * xc + s_tau * xs);
+		tmp1 = (c_tau2 * cc + cs_tau * cs + s_tau2 * ss);
+
+		tmp2 = (c_tau * xs - s_tau * xc)*(c_tau * xs - s_tau * xc);
+		tmp3 = (c_tau2 * ss - cs_tau * cs + s_tau2 * cc);
+
+		//std::cout<<tmp<<" "<<tmp3<<std::endl;
+
+		periodogram[i] = 0.5 * ((tmp /tmp1) + (tmp2 /tmp3));
+		if(normalize ==1)
+			periodogram[i] *= 2/(times.size()* yy);
+
+	}
+
+	//remove angular frequencies
+	for_each(frequencies.begin(),frequencies.end(),[pi](double &i){i/=pi*2;});
+
+	return periodogram;
+
+
+}
+template std::vector<double> LombScargle<double,double,double>(std::vector<double> &, const std::vector<double> &, std::vector<double> &, bool , std::string);
+template std::vector<double> LombScargle<int,double,double>(std::vector<int> &, const std::vector<double> &, std::vector<double> &, bool , std::string);
+
+
+/*
+ *
+ * @brief: Determine a suitable frequency grid for data. This is a C++ implmentation of https://github.com/astropy/astropy
+ *
+ * Note: that this assumes the peak width is driven by the observational baseline, which is generally a good assumption when the baseline is
+ * 		much larger than the oscillation period. If you are searching for periods longer than the baseline of your observations, this may
+ * 		not perform well.
+ *
+ * 		Even with a large baseline, be aware that the maximum frequency returned is based on the concept of "average Nyquist frequency", which
+ * 		may not be useful for irregularly-sampled data. The maximum frequency can be adjusted via the nyquist_factor argument, or through the
+ * 		maximum_frequency argument.
+ *
+ * @param optional<double>	samples_per_peak:	defualt = 5: The approximate number of desired samples across the typical peak
+ * @param optional<double>	nyquist_factor:		defualt = 5: The multiple of the average nyquist frequency used to choose the maximum frequency if maximum_frequency is not provided.
+ * @param optional<double>	minimum_frequency:	If specified, then use this minimum frequency rather than one chosen based on the size of the baseline.
+ * @param optional<double>	maximum_frequency:	If specified, then use this maximum frequency rather than one chosen based on the average nyquist frequency.
+ * @param optioanl<bool>	return_freq_limits: default = false: if true, return only the frequency limits rather than the full frequency grid.
+ *
+ * @treturn					frequency: 			return_freq_limits == false then The heuristically-determined optimal frequency bin else
+ * 												return[0] = minimum_frequency, and return[1] = maximum_frequency
+ *
+ */
+template<typename T, typename T1>
+std::vector<T> AutoFrequency(std::vector<T1> times, std::experimental::optional<double> samples_per_peak, std::experimental::optional<double> nyquist_factor, std::experimental::optional<double> minimum_frequency,
+		std::experimental::optional<double> maximum_frequency,std::experimental::optional<bool> return_freq_limits){
+
+
+
+	//std::experimental::optional op;
+
+	samples_per_peak = samples_per_peak.value_or(5.0);
+
+	nyquist_factor= nyquist_factor.value_or(5.0);
+	minimum_frequency=minimum_frequency.value_or(0.0);
+	maximum_frequency=maximum_frequency.value_or(0.00);
+	return_freq_limits=return_freq_limits.value_or(false);
+
+
+
+
+	std::cout<<"samples_per_peak "<< *samples_per_peak<<" nyquist_factor "<<*nyquist_factor<<" minimum_frequency "<<*minimum_frequency<< " maximum_frequency "<< *maximum_frequency<<" return_freq_limits "<< *return_freq_limits<<std::endl;
+
+
+
+
+
+
+
+	auto [fmin, fmax] = std::minmax_element(std::begin(times), std::end(times));
+
+
+	T1 baseline = *fmax - *fmin;
+	int n_samples = times.size();
+
+	double df = 1.0 / baseline / *samples_per_peak;
+
+	if(*minimum_frequency == 0 )
+		*minimum_frequency = 0.5 * df;
+
+	if(*maximum_frequency == 0){
+		double avg_nyquist = 0.5 * n_samples / baseline;
+		maximum_frequency = (*nyquist_factor) * avg_nyquist;
+
+	}
+
+
+	int Nf = 1 + ::round(((*maximum_frequency - *minimum_frequency) / df));
+
+
+
+	if( *return_freq_limits){
+		std::vector<T> frequencies(2);
+		frequencies[0] = *minimum_frequency;
+		frequencies[1] = *minimum_frequency + df * (Nf - 1);
+		return frequencies;
+	}
+
+	else{
+		int count = 0;
+		std::vector<T> frequencies(Nf,0.00);
+		//for_each(frequencies.begin(),frequencies.end(), [&count](double &i){ i=count; ++count;});
+
+		for_each(frequencies.begin(),frequencies.end(), [&df, &Nf, &minimum_frequency, &count](T &i){ i = *minimum_frequency + df * count; ++count;});
+		return frequencies;
+	}
+
+
+
+
+}
+template std::vector<double> AutoFrequency<double, double>(std::vector<double> times, std::experimental::optional<double> samples_per_peak, std::experimental::optional<double> nyquist_factor, std::experimental::optional<double> minimum_frequency,
+		std::experimental::optional<double> maximum_frequency,std::experimental::optional<bool> return_freq_limits);
+
+
+
+
+
+
+
+
+/*
+ * @briref:	wrapper for gretl shapiro_wilk test for normality; iterates over a map<string, vector<double> >
+ * 			set transform to true if you want do log(1+x) were log=ln on the data
+ *
+ * @prarm: std::map<std::string, std::vector<double> > data: data to test for normality
+ * @param: bool transform: perform ln(1+x) tranform on the data
+ *
+ */
+#if GRETL == 1
+
+void SetGretlPaths(std::string path){
+
+	int err;
+	ConfigPaths config_path;
+	PRN *prn;
+
+	char gnu_dir[]="/usr/local/bin/gnuplot";
+	strcpy(config_path.gnuplot ,gnu_dir);
+
+	std::string gertl_tmp = path+"GretlTmp";
+	strcpy(config_path.workdir ,const_cast<char*>(gertl_tmp.c_str()));
+
+	err = gretl_set_paths (&config_path);
+
+	if (err) {
+		errmsg(err, prn);
+		exit(EXIT_FAILURE);
+	}
+
+
+}
+
+void ShapiroWilksGretl(std::map<std::string, std::vector<double> > &data, bool transform){
+	//Test for normality
+	std::map<std::string, std::vector<double> >::iterator data_iter = data.begin();
+	double w= 0;
+	double p=0;
+	std::vector<double> transformed;
+
+	if(!transform){
+		for(; data_iter != data.end(); ++data_iter){
+
+			if(::shapiro_wilk(data_iter->second.data(), 0, data_iter->second.size()-1, &w,&p ) == 0 ){
+
+				if(p>.05)
+					std::cout<<"Normal Distributions "<<data_iter->first<<" W "<<w<<"P value: "<<p<<std::endl;
+			}
+			else{
+				std::cout<<"Shapiro Wilkes Test Failed "<<data_iter->first<<" Size of data set "<<data_iter->second.size()-1<<std::endl;
+				for(uint i =0; i<data_iter->second.size()-1; ++i){
+					if(data_iter->second[i]>0)
+						std::cout<<data_iter->second[i]<<std::endl;
+				}
+			}
+		}
+	}
+	else{
+		for(; data_iter != data.end(); ++data_iter){
+			transformed.resize(data_iter->second.size());
+			for(uint i=0; i<transformed.size(); ++i)
+				transformed[i] = std::log1p(data_iter->second[i]);
+
+			if(::shapiro_wilk(transformed.data(), 0, transformed.size()-1, &w,&p ) == 0 ){
+
+				if(p>.05)
+					std::cout<<"Normal Distributions "<<data_iter->first<<" W "<<w<<"P value: "<<p<<std::endl;
+			}
+			else{
+				std::cout<<"Shapiro Wilkes Test Failed "<<data_iter->first<<" Size of data set "<<data_iter->second.size()-1<<std::endl;
+				for(uint i =0; i<data_iter->second.size()-1; ++i){
+					if(data_iter->second[i]>0)
+						std::cout<<data_iter->second[i]<<std::endl;
+				}
+			}
+		}//end Test for normality
+	}
+}
+
+/*
+ * @brief: perform an arima
+ *
+ * @param DATASET	*dset:	GRETL data set
+ * @param PRN		*prn: 	GRETL print data set
+ * @param MODEL		*model:	GRETL model data set
+ * @param int		p:		AR order
+ * @param int		d:		order of integreation
+ * @param int		q:		MA order
+ * @param int		position_of_depent_variable: the position in dset->Z of variable
+ * @param int		use_residuals = 0:	if = 1 then will put the residual in the the DATASET
+ *
+ */
+int ArmaEstimateGretl (DATASET *dset, PRN *prn, MODEL *model, int p, int d, int q, int position_of_dependent_variable, int *use_residuals)
+{
+	;
+	int *list;
+	int err;
+
+	model = gretl_model_new();
+	list = gretl_list_new(5);
+
+	list[1] = p;        /* AR order */
+	list[2] = d;        /* order of integration */
+	list[3] = q;        /* MA order */
+	list[4] = LISTSEP;  /* separator */
+	list[5] = position_of_dependent_variable;        /* position of dependent variable in dataset */
+
+	*model = arma(list, NULL, dset, OPT_NONE, prn);
+	err = model->errcode;
+
+	if (err) {
+		errmsg(err, prn);
+	} else {
+		printmodel(model, dset, OPT_NONE, prn);
+	}
+
+	if (!err && *use_residuals) {
+		/* save arma residual series? */
+		int v;
+
+		dataset_add_allocated_series(dset, model->uhat);
+		v = dset->v - 1 ; /* ID number of last series */
+		strcpy(dset->varname[v], "residual");
+		*use_residuals = v;
+		model->uhat = NULL; /* don't double free! */
+	}
+
+	gretl_model_free(model);
+	free(list);
+
+	return err;
+}
+
+/*
+ * @brief: call gretl to calculate and plot hurst exponent
+ *
+ * @param const int		*list:		list of variable index
+ * @param DATASET		*dset:		Gretl DATASET containg the data
+ * @param gretlopt		*opt:		Gretl option
+ * @param PRN			*prn:		Gretl print pointer
+ * @param bool			no_plot:	true == display plot of hurst exponents
+ *
+ */
+double HurstExponentGretl(const int *list, DATASET *dset, gretlopt opt,PRN *prn, bool no_plot){
+
+	int err = 0;
+	double my_hurst_exponent = -1.00000;
+	gretl_matrix *hurst_mat;// = NULL;
+	GretlType *hurst_ = new GretlType;
+
+	//if(!no_plot)
+		err = hurstplot(list, dset, opt,prn);
+
+	hurst_mat = reinterpret_cast<gretl_matrix *>(get_last_result_data (hurst_, &err));
+	my_hurst_exponent = hurst_mat->val[0];
+
+	gretl_matrix_free(hurst_mat);
+
+	delete hurst_;
+
+	return my_hurst_exponent;
+
+}
+
+/*
+ * @breif: computes, plots, and returns the values of ACF and PACF
+ *
+ * @param int			varno: 		index location of variable in DATASET that is being tested
+ * @param int			max_lag:	max number of lags
+ * @param DATASET		*dset:		Gretl DATASET containg the data
+ * @param gretlopt		*opt:		Gretl option
+ * @param PRN			*prn:		Gretl print pointer
+ *
+ * @return std::pair<std::map<double, int>,std::map<double, int> > acf_pacf_values: acf_pacf_values.first = ACF and acf_pacf_values.second = PACF,
+ * 																					were map.key = lag, and map.value = acf/pacf value
+ *
+ */
+std::pair<std::map<double, int>,std::map<double, int> > CorrgramGretl(int varno, int max_lag, DATASET *dset, gretlopt opt, PRN *prn){
+
+	int err = 0;
+	gretl_matrix *cmat;
+
+	/*lag*/ /*value*/
+	std::map<double, int> acf_values;
+	std::map<double, int> pacf_values;
+
+	std::pair<std::map<double, int>,std::map<double, int> > acf_pacf_values;
+
+	/* call correlogram_plot() directly */
+	cmat = acf_matrix(dset->Z[varno], max_lag, dset, dset->n, &err);
+
+	if (!err) {
+		/* take pointers into the two @cmat columns */
+		const double *acf = cmat->val;
+		const double *pacf = acf + cmat->rows;
+		/* set the plus/minus range */
+		double pm = 1.96 / sqrt(dset->n);
+
+		for(int i = 0; i<2*cmat->rows; ++i){
+			if(i<cmat->rows)
+				acf_values[cmat->val[i]] = i;
+			if(i>=cmat->rows){
+				pacf_values[cmat->val[i]] = i-cmat->rows;
+			}
+		}
+		correlogram_plot(dset->varname[varno], acf, pacf, NULL,
+				max_lag, pm, opt);
+	}
+	gretl_matrix_free(cmat);
+
+
+	if (err) {
+		errmsg(err, prn);
+	}
+
+	acf_pacf_values = std::make_pair(acf_values,pacf_values);
+
+	return acf_pacf_values;
+}
+
+
+/*
+ * @brief: computes and plots periodogram
+ *
+ * @param int			varno: 		index location of variable in DATASET that is being tested
+ * @param int			width:		width size when using bartlet window
+ * @param DATASET		*dset:		Gretl DATASET containg the data
+ * @param gretlopt		*opt:		Gretl option
+ * 									OPT_O == bartlet
+ * 									OPT_L == ln
+ * @param PRN			*prn:		Gretl print pointer
+ * @param bool			no_plot:	true == display plot and out put spectral_density_period values
+ *
+ * @return std::map<double, double>		spectral_density_period .first == sprectral density, .second = period
+ *
+ */
+std::map<double, double> PeriodogramGretl(int varno, int width, DATASET *dset, gretlopt opt, PRN *prn, bool no_plot){
+
+
+	int err;
+	gretl_matrix *pmat;
+	int T = dset->t2 - dset->t1 + 1;
+
+
+	/*spectral_density period*/
+	std::map<double,double> spectral_density_period;
+
+
+	if(!no_plot)
+		periodogram(varno, width, dset, opt, prn);
+
+	if(opt == OPT_O){
+		if(width < 0)//see https://gretlml.univpm.it/hyperkitty/list/gretl-users@gretlml.univpm.it/thread/ADMUPRNQYE4N6AHQBK3QCSO57MBX7464/
+			width = 2*sqrt(dset->t2);
+	}
+	if(opt != OPT_O)
+		width = -1;
+
+	//this only does OPT_NONE or OPT_0
+	pmat = periodogram_matrix (*dset->Z,dset->t1,dset->t2, width , &err);
+
+	if(opt == OPT_L){
+		for(int i = 0; i<pmat->rows; ++i)
+			spectral_density_period[std::log(pmat->val[i+pmat->rows])] = T/((double)i+1);
+
+	}
+	else{
+		for(int i = 0; i<pmat->rows; ++i)
+			spectral_density_period[pmat->val[i+pmat->rows]] = T/((double)i+1);
+
+	}
+
+	if(!no_plot){
+		for(auto i : spectral_density_period)
+			std::cout<<i.first<<" "<<i.second<<std::endl;
+	}
+
+	gretl_matrix_free(pmat);
+
+
+	if (err) {
+		errmsg(err, prn);
+	}
+
+
+	return spectral_density_period;
+
+}
+
+
+Summary *SummaryGretl(const DATASET *dset, PRN *prn, int *err){
+
+	Summary *summary;
+	gretlopt opt = OPT_NONE;//OPT_U;//OPT_B;
+	int list1[2] = {1,0};
+
+	summary = get_summary(list1,dset, opt,prn,err);
+
+	print_summary (summary, dset,prn);
+
+	return summary;
+
+
+}
+
+#endif
+
+/*
+ *
+ *
+ */
+void AnalyzeACFPACF(std::pair<std::map<double, int>,std::map<double, int> > acf_pacf_values, int size_data){
+
+	double ci = 2/std::sqrt(size_data);//confidence interval
+
+	int max_lag_above_ci_acf=-1;
+	int max_lag_above_ci_pacf=-1;
+
+	int min_lag_above_ci_acf=1;
+	int min_lag_above_ci_pacf=1;
+
+	std::map<double, int>::reverse_iterator acf_iter = acf_pacf_values.first.rbegin();
+	std::map<double, int>::reverse_iterator pacf_iter= acf_pacf_values.second.rbegin();
+
+	double acf = acf_iter->first;
+	double acf_lag = acf_iter->second;
+
+	for(;acf_iter!=acf_pacf_values.first.rend();++acf_iter,++pacf_iter){
+		if(acf_iter->first > ci){
+			if(std::abs(acf_iter->second) > max_lag_above_ci_acf && acf_iter->second != 1){
+				max_lag_above_ci_acf = acf_iter->second;
+			}
+			else if(std::abs(acf_iter->second) < min_lag_above_ci_acf){
+				min_lag_above_ci_acf = acf_iter->second;
+			}
+		}
+
+		if(pacf_iter->first > ci){
+			if(std::abs(pacf_iter->second) > max_lag_above_ci_pacf && pacf_iter->second != 1){
+				max_lag_above_ci_pacf = pacf_iter->second;
+			}
+			else if(std::abs(pacf_iter->second) < min_lag_above_ci_pacf){
+				min_lag_above_ci_pacf = pacf_iter->second;
+			}
+		}
+	}
+
+
+
+}
+
+
+
+
+
+
 
 
 
