@@ -7,4 +7,6 @@ MathGL and opencv are used plotting.
 
 boost is used for date time, statistics and other as needed.
 
+C++ wrapper function for gretl time series and econometrics http://gretl.sourceforge.net/
+
 
