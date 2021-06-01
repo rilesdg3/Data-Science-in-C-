@@ -10,6 +10,14 @@
 #define DATA_H_
 
 //#include <ReadWriteNet.h>
+
+//#define GRETL 1
+
+//#if GRETL == 1
+//#include <gretl/libgretl.h>//this header causes name crashing with #include <caffe2/core/init.h> and #include <caffe2/core/tensor.h> these in Ensemble.h
+//#include <gretl/describe.h>
+//#endif
+
 #include <ReadWrite.h>
 #include <unordered_set>
 #include <limits>
@@ -19,10 +27,18 @@
 #include <cxxabi.h>
 #include <unordered_map>
 #include <boost/lexical_cast.hpp>
+#include "Stats.h"
+
+
 #define DATA_MAP 1
+
+
+
 
 namespace MyData {
 
+
+typedef hmdf::StdDataFrame<ulong> MyDataFrame;
 
 	struct classcomp {
 	  bool operator() (const double& lhs, const double& rhs) const
@@ -100,7 +116,6 @@ namespace MyData {
 
 	std::vector<float> VectorVectorStringToVectorFloat(std::vector<std::vector<std::string> > &data_in, int column);
 
-
 	template< typename T, typename T1, typename T2, typename T3 >
 	void GroupBy(std::set<T> &set_2_convert,std::vector<std::vector<T1> > &data, T2 &grouped, int group_by_column, int set_column, T3 &var_columns);
 	template< typename T, typename T1, typename T2, typename T3 >
@@ -109,11 +124,22 @@ namespace MyData {
 	template<typename T, typename T1 >
 	void GroupBy(T &data, T1 &grouped, int group_by_column, int value_column);
 
+	//template<>
 	void EmbedVect(std::multimap<double, std::vector<float>, classcomp>::iterator cBegin, std::multimap<double, std::vector<float>,classcomp>::iterator cEnd,
 	std::vector<std::vector<double> > &vect, int vect_data_it, int m, int d, bool skip);
+
 	std::vector<std::vector<double> > EmbedThreading(std::multimap<double, std::vector<float>, classcomp >  &data ,int m, int d, bool skip,
 	std::multimap<double, std::vector<float>, classcomp>::iterator cBegin, std::multimap<double, std::vector<float>,classcomp>::iterator cEnd, bool pnt_data = false);
 	std::vector<std::vector<double> > Embed(std::multimap<double, std::vector<float>, classcomp >  &data ,int m, int d, bool skip);
+
+	//template<typename T, typename T1>
+	void EmbedVect1(std::vector<double>::iterator cBegin, std::vector<double>::iterator cEnd,
+			std::vector<std::vector<double> > &vect, int vect_data_it, int m, int d, bool skip);
+	void EmbedVectSameOrder(std::vector<double>::iterator cBegin, std::vector<double>::iterator cEnd,
+			std::vector<std::vector<double> > &vect, int vect_data_it, int m, int d, int vect_starting_index = 1, bool skip = false);
+	template<typename T, typename T1>
+	std::multimap<T1,std::vector<T> > EmbedVectSameOrder(MyDataFrame &df, std::string variable_column_name, std::string time_date_column_name,
+			int total_number_of_features, int m, int d, int vect_starting_index = 1, bool skip= false);
 
 	std::vector<double> AlignedYvectWithEmbedX(std::multimap<double, std::vector<float>, classcomp >  &data,
 	std::multimap<double, std::vector<float>, classcomp>::iterator cBegin, std::multimap<double, std::vector<float>,classcomp>::iterator cEnd);
@@ -129,6 +155,31 @@ namespace MyData {
 		void EmbedNoReturn(std::multimap<boost::posix_time::ptime, std::vector<long double>> &data ,int m, int d, bool skip = false);
 
 	void Print(std::multimap<boost::posix_time::ptime, std::vector<long double>> &data);
+
+
+
+	template<typename T>
+	void OneHotEncodingMap(std::vector<T> &data, std::map<std::string,int> &value_to_vector_idx, std::vector<int> &one_hot_vector);
+
+	void CategorizeMap(std::vector<std::string> &data, std::map<std::string,int> &value_to_category_id);
+
+	template<typename T, typename T1>
+	void TransFormsInPlace(std::multimap<T, std::vector<std::vector<T1> > > &data, std::vector<int> columns_idx_to_transform, bool value_check, T1 bad_value, std::function<T1 (T1) > func);
+
+	template<typename T>
+	void RemoveNANs(std::vector<T> &data);
+
+#if GRETL == 1
+	template<typename T>
+	void ToGretl(std::vector<T> &data, DATASET *gretl_data_set, int pd, int structure, std::string variable_name = "v1", bool include_constant_vector=false);
+	template<typename T>
+	void ToGretl(std::vector<std::vector<T> > &data, DATASET *gretl_data_set, int pd, int structure, std::vector<std::string> variable_name, bool include_constant_vector = false);
+	template<typename T>
+	void ToGretl(MyDataFrame &data, DATASET *gretl_data_set, int pd, int structure, std::vector<std::string> variable_name, bool include_constant_vector = false);
+
+
+
+#endif
 
 
 	//template<typename T, typename T1>

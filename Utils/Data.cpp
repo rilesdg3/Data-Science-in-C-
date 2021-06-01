@@ -6,7 +6,7 @@
  */
 
 #include "Data.h"
-
+#include "Stats.h"
 
 
 using namespace std;
@@ -21,6 +21,7 @@ namespace MyData{
 
 //if this is defined will use functions for multimaps instead of vectors were it matters
 //#define MAP 1
+
 
 void EmbedVect(std::multimap<double, std::vector<float>, classcomp>::iterator cBegin, std::multimap<double, std::vector<float>,classcomp>::iterator cEnd,
 		std::vector<std::vector<double> > &vect, int vect_data_it, int m, int d, bool skip){
@@ -91,6 +92,273 @@ void EmbedVect(std::multimap<double, std::vector<float>, classcomp>::iterator cB
 		cout<<"vect_data_it_start "<<vect_data_it_start<<" vect_data_it "<<vect_data_it<<endl;
 
 }
+
+
+void EmbedVect1(std::vector<double>::iterator cBegin, std::vector<double>::iterator cEnd,
+		std::vector<std::vector<double> > &vect, int vect_data_it, int m, int d, bool skip){
+
+
+	std::vector<double>::iterator iter;//std::multimap<double, std::vector<float>,classcomp>::iterator iter;
+
+	int end = std::abs(m*d)-d+1;
+
+
+	cout<<"EmbedVect cBegin "<<*cBegin<<" cEnd "<<*cEnd<<endl;
+	//int end = std::abs(m*d)-d+1;
+
+		//int vect_size = data.size() - end;
+
+	int vect_data_it_start = vect_data_it;
+
+		//int vect_data_it =0;
+		//boost::timer::auto_cpu_timer t;
+
+		if(skip == false){
+			for( ; cEnd!=cBegin; cEnd--){
+				iter = cEnd;
+
+				//cout<<std::distance(cBegin, cEnd)<<endl;
+
+				for(int i =1; i<m; i++){
+					std::advance(iter, -1*std::abs(d));
+
+					//cEnd->second.insert(cEnd->second.begin(),iter->second[0]);
+					//vect[m-i-1][vect_data_it] = iter->second[0];
+					vect[vect_data_it][m-i-1] = *iter;//->second[0];
+
+					//vect[m-i-1].push_back(iter->second[0]);
+					//cout<<"cEnd "<<cEnd->first<<" ";
+					//cout<<"cEnd "<<cEnd->second<<" iter "<<iter->second<<endl;
+					//cout<<"cEnd "<<cEnd->second<<" iter->second[0] "<<iter->second[0]<<endl;
+					//cout<<"cEnd "<<cEnd->second<<" iter->second[1] "<<iter->second[1]<<endl;
+
+					//cout<<"vect[m-i-1] "<<m-i-1<<" values "<<vect[m-i-1]<<endl;
+				}
+				if(std::distance(cBegin, cEnd)<end){
+				//	data.erase(cBegin, cEnd);
+					break;
+				}
+				vect_data_it++;
+				//if(vect_data_it>=m+vect_data_it_start){
+				//	break;
+				//}
+			}
+		}
+		else{
+/*			for( ; cEnd!=cBegin; cEnd--){
+				iter = cEnd;
+				//cout<<std::distance(cBegin, cEnd)<<endl;
+
+				for(int i =1; i<m; i++){
+					std::advance(iter, -1*std::abs(d));
+					//cout<<"cEnd b4 "<<cEnd->second<<" iter "<<iter->second<<endl;
+					cEnd->second.insert(cEnd->second.begin(),iter->second[0]);
+				}
+				cEnd->second.pop_back();
+
+				if(std::distance(cBegin, cEnd)<end){
+				//	data.erase(cBegin, cEnd);
+					break;
+				}
+			}*/
+		}
+		//Print(data);
+		cout<<"vect_data_it_start "<<vect_data_it_start<<" vect_data_it "<<vect_data_it<<endl;
+
+}
+
+/*
+ * @brief puts the most recent data(by time) at the end of the outer vector
+ *
+ *
+ * note first mini of mutual inoframtion or lag # = 0 in acf should be the time lag tau
+ *
+ * d = tau = delay ???
+ *
+ * vect_starting_index is the index in the vector were you want the the first embeded value to go then
+ * 			ex: index_to_start = 2,  vect[2] = first_value, vect[3] = second value ....
+ *
+ * mirrors the order of the data comin g in
+ *
+ */
+void EmbedVectSameOrder(std::vector<double>::iterator cBegin, std::vector<double>::iterator cEnd,
+		std::vector<std::vector<double> > &vect, int vect_data_it, int m, int d, int vect_starting_index, bool skip){
+
+
+	std::vector<double>::iterator iter;//std::multimap<double, std::vector<float>,classcomp>::iterator iter;
+
+	int end = std::abs(m*d)-d+1;
+
+
+	cout<<"EmbedVect cBegin "<<*cBegin<<" cEnd "<<*cEnd<<endl;
+	//int end = std::abs(m*d)-d+1;
+
+		//int vect_size = data.size() - end;
+	int count = 0;
+
+	int vect_data_it_start = vect_data_it;
+
+		//int vect_data_it =0;
+		//boost::timer::auto_cpu_timer t;
+
+		if(skip == false){
+			for( ; cEnd!=cBegin; cEnd--){
+				iter = cEnd;
+
+				//cout<<std::distance(cBegin, cEnd)<<endl;
+				//<= so we get exactly m days after the current day
+				for(int i =vect_starting_index; i< m+vect_starting_index; i++){
+
+
+					//cEnd->second.insert(cEnd->second.begin(),iter->second[0]);
+					//vect[m-i-1][vect_data_it] = iter->second[0];
+					//vect[vect_data_it][m-i-1] = *iter;//->second[0];
+					vect[vect_data_it][i] = *iter;//->second[0];
+					std::advance(iter, -1*std::abs(d));
+
+					//vect[m-i-1].push_back(iter->second[0]);
+					//cout<<"cEnd "<<cEnd->first<<" ";
+					//cout<<"cEnd "<<cEnd->second<<" iter "<<iter->second<<endl;
+					//cout<<"cEnd "<<cEnd->second<<" iter->second[0] "<<iter->second[0]<<endl;
+					//cout<<"cEnd "<<cEnd->second<<" iter->second[1] "<<iter->second[1]<<endl;
+
+					//cout<<"vect[m-i-1] "<<m-i-1<<" values "<<vect[m-i-1]<<endl;
+				}
+				if(std::distance(cBegin, cEnd)<end){
+				//	data.erase(cBegin, cEnd);
+					break;
+				}
+				--vect_data_it;
+				++count;
+				//if(vect_data_it>=m+vect_data_it_start){
+				//	break;
+				//}
+			}
+		}
+		else{
+/*			for( ; cEnd!=cBegin; cEnd--){
+				iter = cEnd;
+				//cout<<std::distance(cBegin, cEnd)<<endl;
+
+				for(int i =1; i<m; i++){
+					std::advance(iter, -1*std::abs(d));
+					//cout<<"cEnd b4 "<<cEnd->second<<" iter "<<iter->second<<endl;
+					cEnd->second.insert(cEnd->second.begin(),iter->second[0]);
+				}
+				cEnd->second.pop_back();
+
+				if(std::distance(cBegin, cEnd)<end){
+				//	data.erase(cBegin, cEnd);
+					break;
+				}
+			}*/
+		}
+		//Print(data);
+		cout<<"vect_data_it_start "<<vect_data_it_start<<" vect_data_it "<<vect_data_it<<endl;
+
+}
+
+/*
+ * @brief mirrors the order of the data coming
+ * 		the very first value is counted in m so if m == 25 then there will be 25 values
+ * 		so date 0 will be the first then date 0+d will be the second
+ *
+ *
+ * vect_starting_index is the index in the vector were you want the the first embeded value to go then
+ * 			ex: index_to_start = 2,  vect[2] = first_value, vect[3] = second value ....
+ *
+ *
+ *
+ *
+ */
+template<typename T, typename T1>
+std::multimap<T1,std::vector<T> > EmbedVectSameOrder(MyDataFrame &df, std::string variable_column_name, std::string time_date_column_name,
+		int total_number_of_features, int m, int d,int vect_starting_index, bool skip){
+
+
+	std::vector<T1> time_values = df.get_column<T1>(time_date_column_name.c_str());
+	int vect_data_it = time_values.size()-1;
+	std::vector<T> values = df.get_column<T>(variable_column_name.c_str());
+	typename std::vector<T>::iterator cBegin = values.begin();
+	typename std::vector<T>::iterator cEnd = values.end();
+	std::multimap<T1, std::vector<T> > embeded_data;
+	typename std::multimap<T1, std::vector<T> >::iterator embeded_data_iter;
+	std::vector<double>::iterator iter;//std::multimap<double, std::vector<float>,classcomp>::iterator iter;
+
+	//total_number_of_features = m+12/*months*/+6/*TA_Indicators*/-1;
+	int vect_size = total_number_of_features;//end;//distance - end;//data.size() - end;
+	std::vector<double > vect_data (vect_size,0);
+
+	int end = std::abs(m*d)-d+1;
+	int distance = std::distance(values.begin(),values.end());
+	int outer_vect_size= distance - end;
+
+
+	--cEnd;
+	//cout<<"EmbedVect cBegin "<<*cBegin<<" cEnd "<<*cEnd<<endl;
+	//int end = std::abs(m*d)-d+1;
+
+		//int vect_size = data.size() - end;
+	int count = 0;
+
+	int vect_data_it_start = vect_data_it;
+
+		//int vect_data_it =0;
+		//boost::timer::auto_cpu_timer t;
+
+		if(skip == false){
+			for( ; cEnd!=cBegin; cEnd--){
+				iter = cEnd;
+
+				//cout<<std::distance(cBegin, cEnd)<<endl;
+				std::vector<T> embeded_vect(total_number_of_features,0);
+
+				embeded_data_iter = embeded_data.insert(embeded_data.begin(), std::pair<T1, std::vector<T> >(time_values[vect_data_it] ,embeded_vect) );
+
+
+										//<= so we get exactly m days after the current day
+				for(int i =vect_starting_index; i<m+vect_starting_index; i++){
+
+					//std::cout<<embeded_data_iter->first<<" time_values[vect_data_it] "<<time_values[vect_data_it]<<std::endl;
+					embeded_data_iter->second[i] = *iter;
+					std::advance(iter, -1*std::abs(d));
+				}
+				if(std::distance(cBegin, cEnd)<end){
+				//	data.erase(cBegin, cEnd);
+					break;
+				}
+				--vect_data_it;
+				++count;
+			}
+		}
+		else{
+/*			for( ; cEnd!=cBegin; cEnd--){
+				iter = cEnd;
+				//cout<<std::distance(cBegin, cEnd)<<endl;
+
+				for(int i =1; i<m; i++){
+					std::advance(iter, -1*std::abs(d));
+					//cout<<"cEnd b4 "<<cEnd->second<<" iter "<<iter->second<<endl;
+					cEnd->second.insert(cEnd->second.begin(),iter->second[0]);
+				}
+				cEnd->second.pop_back();
+
+				if(std::distance(cBegin, cEnd)<end){
+				//	data.erase(cBegin, cEnd);
+					break;
+				}
+			}*/
+		}
+		//Print(data);
+		//cout<<"vect_data_it_start "<<vect_data_it_start<<" vect_data_it "<<vect_data_it<<endl;
+
+		return embeded_data;
+
+}
+template std::multimap<boost::gregorian::date, std::vector<double> > EmbedVectSameOrder<double, boost::gregorian::date>(MyDataFrame &, std::string, std::string, int , int, int, int, bool );
+
+
+
 
 /*
  * @brief: performs time delay embedding using multiple threads
@@ -1026,6 +1294,428 @@ inline int ZeroOneNegOne(long double x){
 }
 
 
+#if GRETL == 1
+/*
+ *
+ * @brief: converts a vector<T> into at GRETL DATASET struct
+ *
+ * @tparam vector<T> data: the to be put into DATASET->
+ * @param DATASET *gretl_data_set: This is the data strut required for GRETL
+ * @param int pd: frequency: ex: quarterly =4, monthly = 12, weekly = 52, daily = 5,6, or 7
+ * @param int structure: panel = ??, time series = 1, cross sectional = ??, and ????
+ * @param string variable_name: the name of the variable
+ * @param bool include_constant_vector: if true puts a constant vector of 1's at dset->Z[0][i] = 1.00;
+ * 										this is because dset->Z[0][] is reserved for a constant vector in gretl
+ *
+ */
+template<typename T>
+void ToGretl(std::vector<T> &data, DATASET *gretl_data_set, int pd, int structure, std::string variable_name, bool include_constant_vector){
+
+
+	/*
+
+	typedef struct {
+	    int v;               number of variables
+	    int n;               number of observations
+	    int pd;              periodicity or frequency of data
+	    int structure;       time series, cross section or whatever
+	    double sd0;          float representation of stobs
+	    int t1, t2;          start and end of current sample
+	    char stobs[OBSLEN];   string representation of starting obs (date)
+	    char endobs[OBSLEN];  string representation of ending obs
+	    double **Z;          data array
+	    char **varname;      array of names of variables
+	    VARINFO **varinfo;   array of specific info on vars
+	    char markers;        NO_MARKERS (0), REGULAR MARKERS or DAILY_DATE_STRINGS
+	    char modflag;        binary flag for dataset modified or not
+	    char **S;            to hold observation markers
+	    char *descrip;       to hold info on data sources etc.
+	    char *submask;       subsampling mask
+	    char *restriction;   record of sub-sampling restriction
+	    char *padmask;       record of padding to re-balance panel data
+	    unsigned int rseed;  resampling seed
+	    int auxiliary;       = 0 for regular dataset, 1 for aux dataset
+	    char *pangrps;       panel-only: name of series holding group names
+	    int panel_pd;        panel-only: panel time-series frequency
+	    double panel_sd0;    panel-only: time-series start
+	} DATASET;
+	 */
+
+
+	int nobs = data.size();
+	gretl_data_set->pd = pd;
+	gretl_data_set->structure = structure;//1=time series
+	//gretl_data_set = create_new_dataset (1,nobs, 0);
+	gretl_data_set->v = 1;//0;//# of vars +1 becuase the dataset requires a constant
+	gretl_data_set->n = nobs;
+	gretl_data_set->t1 = 0;//this should be the same as i in for loop below;
+	gretl_data_set->t2 = nobs-1;//data.size();//this should be the same as i in for loop below;
+	//char f_[] = variable_name.c_str();
+
+
+
+
+
+
+	if(include_constant_vector == false){
+		gretl_data_set->varname = (char **) malloc(sizeof(char *)*gretl_data_set->v);//malloc(f_* sizeof(f_));
+		*gretl_data_set->varname = (char *) malloc(sizeof(char));//malloc(f_* size
+
+		::dataset_allocate_varnames(gretl_data_set);
+		int err = allocate_Z(gretl_data_set, OPT_NONE);
+		for(int i = 0;  i<gretl_data_set->v; ++i){
+			gretl_data_set->varname[i] = (char *) malloc(sizeof(char));
+			strcpy(gretl_data_set->varname[i],  const_cast<char*>(variable_name.c_str()));
+			::series_set_label(gretl_data_set, i, variable_name.c_str() );
+			//::printf("%s\n",gretl_data_set->varname[i]);
+		}
+
+
+		if(gretl_data_set != NULL){
+
+			int size_ = sizeof(gretl_data_set->Z)/sizeof(double);
+			for(int i = 0; i<nobs;++i){
+				gretl_data_set->Z[0][i] = data[i];
+				//std::cout<<gretl_data_set->Z[0][i]<<" i "<<i<<" nobs "<<nobs<<std::endl;
+			}
+
+		}
+	}
+
+	else{
+		gretl_data_set->v = 2;
+		gretl_data_set->varname = (char **) malloc(sizeof(char *)*gretl_data_set->v);//malloc(f_* sizeof(f_));
+		*gretl_data_set->varname = (char *) malloc(sizeof(char));//malloc(f_* size
+
+		::dataset_allocate_varnames(gretl_data_set);
+		int err = allocate_Z(gretl_data_set, OPT_NONE);
+
+
+		gretl_data_set->varname[0] = (char *) malloc(sizeof(char));
+		strcpy(gretl_data_set->varname[0],  "constant");
+		::series_set_label(gretl_data_set, 0, "constant");
+		for(int i = 1;  i<gretl_data_set->v; ++i){
+			gretl_data_set->varname[i] = (char *) malloc(sizeof(char));
+			strcpy(gretl_data_set->varname[i],  const_cast<char*>(variable_name.c_str()));
+			::series_set_label(gretl_data_set, i, variable_name.c_str() );
+			//::printf("%s\n",gretl_data_set->varname[i]);
+		}
+
+
+		if(gretl_data_set != NULL){
+
+			int size_ = sizeof(gretl_data_set->Z)/sizeof(double);
+			for(int i = 0; i<nobs;++i){
+				gretl_data_set->Z[0][i] = 1.0000;
+				gretl_data_set->Z[1][i] = data[i];
+				//std::cout<<gretl_data_set->Z[0][i]<<" i "<<i<<" nobs "<<nobs<<std::endl;
+			}
+
+
+
+
+		}
+	}
+
+
+}
+template void ToGretl<double>(std::vector<double> &, DATASET *, int , int , std::string,bool );
+
+/*
+ *
+ * @brief: converts a vector<T> into at GRETL DATASET struct
+ *
+ * @tparam std::vector<vector<T> > data: the to be put into DATASET->
+ * @param DATASET *gretl_data_set: This is the data strut required for GRETL
+ * @param int pd: frequency: ex: quarterly =4, montly = 12, weekly = 52, daily = 5,6, or 7
+ * @param int structure: panel = ??, time series = 1, cross sectional = ??, and ????
+ * @param vector<string> variable_name: the names of the variables
+ * @param bool include_constant_vector: if true puts a constant vector of 1's at dset->Z[0][i] = 1.00;
+ * 										this is because dset->Z[0][] is reserved for a constant vector in gretl
+ *
+ */
+template<typename T>
+void ToGretl(std::vector<std::vector<T> > &data, DATASET *gretl_data_set, int pd, int structure, std::vector<std::string> variable_name, bool include_constant_vector){
+
+
+	/*
+
+	typedef struct {
+	    int v;               number of variables
+	    int n;               number of observations
+	    int pd;              periodicity or frequency of data
+	    int structure;       time series, cross section or whatever
+	    double sd0;          float representation of stobs
+	    int t1, t2;          start and end of current sample
+	    char stobs[OBSLEN];   string representation of starting obs (date)
+	    char endobs[OBSLEN];  string representation of ending obs
+	    double **Z;          data array
+	    char **varname;      array of names of variables
+	    VARINFO **varinfo;   array of specific info on vars
+	    char markers;        NO_MARKERS (0), REGULAR MARKERS or DAILY_DATE_STRINGS
+	    char modflag;        binary flag for dataset modified or not
+	    char **S;            to hold observation markers
+	    char *descrip;       to hold info on data sources etc.
+	    char *submask;       subsampling mask
+	    char *restriction;   record of sub-sampling restriction
+	    char *padmask;       record of padding to re-balance panel data
+	    unsigned int rseed;  resampling seed
+	    int auxiliary;       = 0 for regular dataset, 1 for aux dataset
+	    char *pangrps;       panel-only: name of series holding group names
+	    int panel_pd;        panel-only: panel time-series frequency
+	    double panel_sd0;    panel-only: time-series start
+	} DATASET;
+	 */
+
+
+	int nobs = data[0].size();
+	for(int i = 0; i<data.size(); ++i){
+		if(data[i].size() > nobs)
+			nobs=data[i].size();
+	}
+
+	gretl_data_set->pd = pd;
+	gretl_data_set->structure = structure;//1=time series
+	//gretl_data_set = create_new_dataset (1,nobs, 0);
+	gretl_data_set->v = variable_name.size();//data.size();//0;//# of vars +1 becuase the dataset requires a constant
+	gretl_data_set->n = nobs;
+	gretl_data_set->t1 = 0;//this should be the same as i in for loop below;
+	gretl_data_set->t2 = nobs-1;//data.size();//this should be the same as i in for loop below;
+	//char f_[] = variable_name.c_str();
+
+
+
+	if(include_constant_vector == false){
+		gretl_data_set->varname = (char **) malloc(sizeof(char *)*gretl_data_set->v);//malloc(f_* sizeof(f_));
+		*gretl_data_set->varname = (char *) malloc(sizeof(char));//malloc(f_* size
+
+
+		::dataset_allocate_varnames(gretl_data_set);
+		int err = allocate_Z(gretl_data_set, OPT_NONE);
+		for(int i = 0;  i<gretl_data_set->v; ++i){
+			gretl_data_set->varname[i] = (char *) malloc(sizeof(char));
+			strcpy(gretl_data_set->varname[i],  const_cast<char*>(variable_name[i].c_str()));
+			::series_set_label(gretl_data_set, i, variable_name[i].c_str() );
+			//::printf("%s\n",gretl_data_set->varname[i]);
+		}
+
+		if(gretl_data_set != NULL){
+			for(int j = 0; j<data.size();++j){
+				for(int i = 0; i<nobs;++i){
+
+					if(i > data[j].size()-1){
+						gretl_data_set->Z[j][i] = NADBL;
+					}
+					else
+						gretl_data_set->Z[j][i] = data[j][i];
+
+					//std::cout<<gretl_data_set->Z[j][i]<<" j "<<j<<" number of vars "<<data.size()<<" i "<<i<<" nobs "<<nobs<<std::endl;
+				}
+			}
+
+		}
+	}
+	else{
+
+		//gretl_data_set->v=data.size();
+		gretl_data_set->varname = (char **) malloc(sizeof(char *)*gretl_data_set->v);//malloc(f_* sizeof(f_));
+		*gretl_data_set->varname = (char *) malloc(sizeof(char));//malloc(f_* size
+
+
+		::dataset_allocate_varnames(gretl_data_set);
+		int err = allocate_Z(gretl_data_set, OPT_NONE);
+		/*gretl_data_set->varname[0] = (char *) malloc(sizeof(char));
+		strcpy(gretl_data_set->varname[0],  "constant");
+		::series_set_label(gretl_data_set, 0, "constant")*/;
+
+		for(int i = 0;  i<gretl_data_set->v; ++i){
+			gretl_data_set->varname[i] = (char *) malloc(sizeof(char));
+			strcpy(gretl_data_set->varname[i],  const_cast<char*>(variable_name[i].c_str()));
+			::series_set_label(gretl_data_set, i, variable_name[i].c_str() );
+			//::printf("%s\n",gretl_data_set->varname[i]);
+		}
+
+		if(gretl_data_set != NULL){
+			for(int i = 0; i<nobs;++i)
+				gretl_data_set->Z[0][i] = 1.0000;
+
+			for(int j = 0; j<data.size();++j){
+				for(int i = 0; i<nobs;++i){
+
+					if(i > data[j].size()-1){
+						gretl_data_set->Z[j+1][i] = NADBL;
+					}
+					else
+						gretl_data_set->Z[j+1][i] = data[j][i];
+
+					//std::cout<<gretl_data_set->Z[j][i]<<" j "<<j<<" number of vars "<<data.size()<<" i "<<i<<" nobs "<<nobs<<std::endl;
+				}
+			}
+
+		}
+	}
+
+
+}
+template void ToGretl<double>(std::vector<std::vector<double> > &, DATASET *, int , int , std::vector<std::string> ,bool );
+
+/*
+ *
+ * @brief: converts a vector<T> into at GRETL DATASET struct
+ *
+ * @tparam std::vector<vector<T> > data: the to be put into DATASET->
+ * @param DATASET *gretl_data_set: This is the data strut required for GRETL
+ * @param int pd: frequency: ex: quarterly =4, montly = 12, weekly = 52, daily = 5,6, or 7
+ * @param int structure: panel = ??, time series = 1, cross sectional = ??, and ????
+ * @param vector<string> variable_name: the names of the variables
+ * @param bool include_constant_vector: if true puts a constant vector of 1's at dset->Z[0][i] = 1.00;
+ * 										this is because dset->Z[0][] is reserved for a constant vector in gretl
+ *
+ */
+template<typename T>
+void ToGretl(MyDataFrame &data, DATASET *gretl_data_set, int pd, int structure, std::vector<std::string> variable_name, bool include_constant_vector){
+
+
+	/*
+
+	typedef struct {
+	    int v;               number of variables
+	    int n;               number of observations
+	    int pd;              periodicity or frequency of data
+	    int structure;       time series, cross section or whatever
+	    double sd0;          float representation of stobs
+	    int t1, t2;          start and end of current sample
+	    char stobs[OBSLEN];   string representation of starting obs (date)
+	    char endobs[OBSLEN];  string representation of ending obs
+	    double **Z;          data array
+	    char **varname;      array of names of variables
+	    VARINFO **varinfo;   array of specific info on vars
+	    char markers;        NO_MARKERS (0), REGULAR MARKERS or DAILY_DATE_STRINGS
+	    char modflag;        binary flag for dataset modified or not
+	    char **S;            to hold observation markers
+	    char *descrip;       to hold info on data sources etc.
+	    char *submask;       subsampling mask
+	    char *restriction;   record of sub-sampling restriction
+	    char *padmask;       record of padding to re-balance panel data
+	    unsigned int rseed;  resampling seed
+	    int auxiliary;       = 0 for regular dataset, 1 for aux dataset
+	    char *pangrps;       panel-only: name of series holding group names
+	    int panel_pd;        panel-only: panel time-series frequency
+	    double panel_sd0;    panel-only: time-series start
+	} DATASET;
+	 */
+
+
+
+	//find vector with largest size
+
+	int nobs = 0;//data[0].size();
+	/*	for(int i = 0; i<data.size(); ++i){
+		if(data[i].size() > nobs)
+			nobs=data[i].size();
+	}
+	 */
+	//data.get_columns_info()
+	for(auto i : variable_name){
+		if(data.get_column<double>(i.c_str()).size()>nobs)
+			nobs =data.get_column<double>(i.c_str()).size();
+	}
+
+	gretl_data_set->pd = pd;
+	gretl_data_set->structure = structure;//1=time series
+	//gretl_data_set = create_new_dataset (1,nobs, 0);
+	gretl_data_set->v = variable_name.size();//data.size();//0;//# of vars +1 becuase the dataset requires a constant
+	gretl_data_set->n = nobs;
+	gretl_data_set->t1 = 0;//this should be the same as i in for loop below;
+	gretl_data_set->t2 = nobs-1;//data.size();//this should be the same as i in for loop below;
+	//char f_[] = variable_name.c_str();
+
+
+
+	if(include_constant_vector == false){
+		gretl_data_set->varname = (char **) malloc(sizeof(char *)*gretl_data_set->v);//malloc(f_* sizeof(f_));
+		*gretl_data_set->varname = (char *) malloc(sizeof(char));//malloc(f_* size
+
+
+		::dataset_allocate_varnames(gretl_data_set);
+		int err = allocate_Z(gretl_data_set, OPT_NONE);
+		for(int i = 0;  i<gretl_data_set->v; ++i){
+			gretl_data_set->varname[i] = (char *) malloc(sizeof(char));
+			strcpy(gretl_data_set->varname[i],  const_cast<char*>(variable_name[i].c_str()));
+			::series_set_label(gretl_data_set, i, variable_name[i].c_str() );
+			//::printf("%s\n",gretl_data_set->varname[i]);
+		}
+
+		if(gretl_data_set != NULL){
+			int count = 0;
+			//for(int j = 0; j<data.size();++j){
+			for(auto j : variable_name){
+				//data.get_column<double>(j.c_str)[i]
+				for(int i = 0; i<nobs;++i){
+
+					if(i > data.get_column<double>(j.c_str()).size()-1 || std::isnan(data.get_column<double>(j.c_str())[i])){
+						gretl_data_set->Z[count][i] = NADBL;
+					}
+					else
+						gretl_data_set->Z[count][i] = data.get_column<double>(j.c_str())[i];
+
+					//std::cout<<gretl_data_set->Z[count][i]<<" count "<<count<<" i "<<i<<j<<std::endl;
+				}
+				++count;
+			}
+		}
+	}
+	else{
+
+		gretl_data_set->v=variable_name.size();
+		gretl_data_set->varname = (char **) malloc(sizeof(char *)*gretl_data_set->v);//malloc(f_* sizeof(f_));
+		*gretl_data_set->varname = (char *) malloc(sizeof(char));//malloc(f_* size
+
+
+		::dataset_allocate_varnames(gretl_data_set);
+		int err = allocate_Z(gretl_data_set, OPT_NONE);
+		/*gretl_data_set->varname[0] = (char *) malloc(sizeof(char));
+		strcpy(gretl_data_set->varname[0],  "constant");
+		::series_set_label(gretl_data_set, 0, "constant");*/
+
+
+		for(int i = 0;  i<gretl_data_set->v; ++i){
+			gretl_data_set->varname[i] = (char *) malloc(sizeof(char));
+			strcpy(gretl_data_set->varname[i],  const_cast<char*>(variable_name[i].c_str()));
+			::series_set_label(gretl_data_set, i, variable_name[i].c_str() );
+			//::printf("%s\n",gretl_data_set->varname[i]);
+		}
+
+		if(gretl_data_set != NULL){
+			for(int i = 0; i<nobs;++i)
+				gretl_data_set->Z[0][i] = 1.0000;
+			int count = 1;
+			//for(int j = 0; j<data.size();++j){
+			for(auto j : variable_name){
+				//data.get_column<double>(j.c_str)[i]
+				for(int i = 0; i<nobs;++i){
+
+					if(i > data.get_column<double>(j.c_str()).size()-1 || std::isnan(data.get_column<double>(j.c_str())[i])){
+						gretl_data_set->Z[count][i] = NADBL;
+					}
+					else
+						gretl_data_set->Z[count][i] = data.get_column<double>(j.c_str())[i];
+
+					//std::cout<<gretl_data_set->Z[count][i]<<" count "<<count<<" i "<<i<<j<<std::endl;
+				}
+				++count;
+			}
+		}
+	}
+
+
+}
+template void ToGretl<double>(MyDataFrame &, DATASET *, int , int , std::vector<std::string> , bool );
+
+
+#endif
+
+
 
 /*
  * @brief: performs time delay embedding, inserting the delays right into the data passed in
@@ -1095,6 +1785,170 @@ void Print(std::multimap<boost::posix_time::ptime, std::vector<long double>> &da
 		for(std::vector<long double>::iterator vecIter = cBegin->second.begin(); vecIter != cBegin->second.end(); vecIter++)
 			cout<<*vecIter<<" ";
 		cout<<endl;
+	}
+
+}
+
+/*
+ *	Combine all string/categorical values in a map then convert that into the vector-> why not just do a set
+ *			is there any reason why I would need to  get the key to find its spot in in thevector-> yes when I am saving the data
+ *
+ *			create map then iterate through it an then incremtn
+ *
+ *
+ *						were int it would be be in vector-> see below about not wanting to use a map
+ *	use a map<string, int> were the records it's respective spot in the vector->in short this map is used so I am not constantly iterating over a vector when saving the data
+ *	this might be fine for this project but when things need to expand like adding a new state or store, then
+ *		the ordering for everything will change because of how it gets inserted into the map/set were as
+ *		if it all in a vector i just add it to the end
+ *
+ *		but the
+ *
+ *
+ *
+ *@breif: map
+ *
+ */
+
+template<typename T>
+void OneHotEncodingMap(std::vector<T> &data, std::map<std::string,int> &value_to_vector_idx, std::vector<int> &one_hot_vector){
+
+	std::map<T, int> n_unique;
+
+	Stats::GetUniqueCounts(data,n_unique);
+
+	int idx = one_hot_vector.size();
+
+	for(auto iter:n_unique){
+		++idx;
+		value_to_vector_idx[std::to_string(iter.first)] = idx;
+	}
+
+	one_hot_vector.resize(idx);
+
+}
+template void OneHotEncodingMap<double>(std::vector<double> &, std::map<std::string,int> &, std::vector<int> &);
+template void OneHotEncodingMap<long double>(std::vector<long double> &, std::map<std::string,int> &, std::vector<int> &);
+
+template<>
+void OneHotEncodingMap(std::vector<std::string> &data, std::map<std::string,int> &value_to_vector_idx, std::vector<int> &one_hot_vector){
+
+	std::map<std::string, int> n_unique;
+
+	Stats::GetUniqueCounts(data,n_unique);
+
+	int idx = one_hot_vector.size();
+
+	for(auto iter:n_unique){
+		++idx;
+		value_to_vector_idx[iter.first] = idx;
+	}
+
+	one_hot_vector.resize(idx);
+
+}
+template void OneHotEncodingMap<std::string>(std::vector<std::string> &, std::map<std::string,int> &, std::vector<int> &);
+
+//template<>
+void CategorizeMap(std::vector<std::string> &data, std::map<std::string,int> &value_to_category_id){
+
+	std::map<std::string, int> n_unique;
+
+	Stats::GetUniqueCounts(data,n_unique);
+
+	int idx = 0;
+
+	for(auto iter:n_unique){
+		++idx;
+		value_to_category_id[iter.first] = idx;
+	}
+
+}
+//template void CategorizeMap<std::string>(std::vector<std::string> &, std::map<std::string,int> &);
+
+
+/*
+ * @brief:
+ *
+ */
+template<typename T, typename T1>
+void TransFormsInPlace(std::multimap<T, std::vector<std::vector<T1> > > &data, std::vector<int> columns_idx_to_transform, bool value_check, T1 bad_value, std::function<T1 (T1) > func ){
+
+
+	typename std::multimap<T, std::vector<std::vector<T1> > >::iterator data_iter = data.begin();
+	typename std::vector<std::vector<T1> >::iterator outer_vect_iter;
+	typename std::vector<T1>::iterator inner_vect_iter;
+
+	for(; data_iter != data.end(); ++data_iter){
+		for(int j = 0; j != data_iter->second.size(); ++j){//for(outer_vect_iter= data_iter->second.begin(); outer_vect_iter!= data_iter->second.end(); ++outer_vect_iter){
+			for(auto i:columns_idx_to_transform){
+				if(value_check == true){
+					if( data_iter->second[j][i] != bad_value)
+						data_iter->second[j][i] = func(data_iter->second[j][i]);
+				}
+				else
+					data_iter->second[j][i] = func(data_iter->second[j][i]);
+			}
+		}
+	}
+
+}
+template void TransFormsInPlace<boost::posix_time::ptime, double>(std::multimap<boost::posix_time::ptime, std::vector<std::vector<double> > > &, std::vector<int>, bool, double, std::function<double (double) >);
+template void TransFormsInPlace<boost::posix_time::ptime, long double>(std::multimap<boost::posix_time::ptime, std::vector<std::vector<long double> > > &, std::vector<int>, bool, long double, std::function<long double(long double) >);
+
+
+/*
+ * @brief: iterates through a vector and removes nan's inplace
+ *
+ */
+template<typename T>
+void RemoveNANs(std::vector<T> &data){
+
+
+	std::vector<T> my_data;
+	int count_nan=0;
+
+	for(uint i = 0; i<data.size(); ++i){
+		if(data[i] != data[i])
+			++count_nan;
+	}
+
+	if(count_nan>0){
+		my_data.resize(data.size() - count_nan);
+		int j = 0;
+		for(uint i = 0; i<data.size(); ++i){
+			if(data[i] == data[i]){
+				my_data[j] = data[i];
+				++j;
+			}
+		}
+		data.clear();
+				data.shrink_to_fit();
+				data = my_data;
+	}
+
+}
+template void RemoveNANs<double>(std::vector<double> &);
+template void RemoveNANs<long double>(std::vector<long double> &);
+
+template<>
+void RemoveNANs(std::vector<std::string> &data){
+
+	std::string my_nan = "nan";
+	std::vector<std::string> my_data;
+	int count_nan= std::count(data.begin(),data.end(), my_nan);
+	int j = 0;
+	my_data.resize(data.size() - count_nan);
+	if(count_nan>0){
+		for(uint i = 0; i<data.size(); ++i){
+			if(data[i].compare(my_nan)!=0){
+				my_data[j] = data[i];
+				++j;
+			}
+		}
+		data.clear();
+		data.shrink_to_fit();
+		data = my_data;
 	}
 
 }

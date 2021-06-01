@@ -16,12 +16,25 @@ namespace Stats{
 template<typename T>
 std::map<std::string, double > CalcSimpleStats(vector<T > &data, Histogram &hist_st, int n_bins, bool show_stats){
 
-	int c = data.size();//data.size();//cache size for histogramm.
+	//int c = data.size();//data.size();//cache size for histogramm.
 
 	std::map<std::string, double > my_stats;
 
 
 
+	std::vector<T> my_data(data.size());
+	auto end = std::copy_if (data.begin(), data.end(), my_data.begin(), [](T i){return !(std::isnan(i));} );
+	my_data.resize(std::distance(my_data.begin(),end));
+
+	int c = my_data.size();
+
+	std::vector<int> sorted_index(my_data.size());//holds the index of my_data as if it were sorted, i.e. sorted_index[0] =12375 would be
+	//either the min or max or whatever my_data[12375] sorted_index[1] = 896, would be the second min or max or whatever
+
+	//std::vector<int> bin(my_data.size());
+	hist_st.bin_index.resize(my_data.size());// = bin;
+	std::iota(sorted_index.begin(), sorted_index.end(),0);
+	std::sort(sorted_index.begin(), sorted_index.end(), [&my_data](T i1, T i2){return my_data[i1] < my_data[i2];} );
 	//w_acc wh_acc(boost::accumulators::tag::density::num_bins = 20, boost::accumulators::tag::density::cache_size = 10);
 	stat_acc wh_acc(boost::accumulators::tag::density::num_bins = n_bins, boost::accumulators::tag::density::cache_size = 10);
 
@@ -51,23 +64,29 @@ std::map<std::string, double > CalcSimpleStats(vector<T > &data, Histogram &hist
 	//fill accumulator
 	for (int j = 0; j < c; ++j)
 	{
-		//why did I have this myAccumulator((double)data[j]);
-		wh_acc((double)data[j]);
+		//why did I have this myAccumulator((double)my_data[j]);
+		wh_acc((double)my_data[j]);
 	}
 
 	histogram_type hist = boost::accumulators::density(wh_acc);
 
 	double total = 0.0;
-
+	std::vector<int>::iterator it = sorted_index.begin();
+	//int bin_number = 0;
 	for( uint i = 0; i < hist.size(); i++ )
 	{
 		//std::cout << "Bin lower bound: " << hist[i].first << ", Value: " << hist[i].second << std::endl;
-		hist_st.hist_vect_bin.push_back(hist[i].first);
-		hist_st.hist_vect.push_back(hist[i].second);
-		hist_st.marginals.push_back((float)hist[i].second);
+		hist_st.bins.push_back(hist[i].first);
+		hist_st.marginals.push_back(hist[i].second);
+		for(; (it!=sorted_index.end() && my_data[*it] < hist[i].first); ++it){
+			hist_st.bin_index[*it]=i;
+			//cout<<"my_data[*it] < hist[i].first "<<(my_data[*it] < hist[i].first)<<endl;
+			//cout<<"value "<<my_data[*it]<<" n_bin "<<hist_st.bin_index[*it]<<" *it "<<*it<< " Bin lower bound: " << hist[i].first<<endl;
+
+		}
+
 		total += hist[i].second;
 	}
-	//std::cout << "Total: " << total << std::endl; //should be 1 (and it is)
 
 	auto p = std::cout.precision();
 	std::cout.precision(5);
@@ -181,24 +200,31 @@ template void PlotLine<float >(std::vector<float> & ,string );
 template< typename T >
 void ComputeHistograms(std::vector<T> &data,Histogram &hist_st, int n_bins){
 
-	int c = data.size();
+	//int n_nan = std::count_if(data.begin(),data.end(), MyIsNan);
+
+
+	std::vector<T> my_data(data.size());
+	auto end = std::copy_if (data.begin(), data.end(), my_data.begin(), [](T i){return !(std::isnan(i));} );
+	my_data.resize(std::distance(my_data.begin(),end));
+
+	int c = my_data.size();
 
 	hist_st.count = c;
 
-	std::vector<int> sorted_index(data.size());//holds the index of data as if it were sorted, i.e. sorted_index[0] =12375 would be
-	//either the min or max or whatever data[12375] sorted_index[1] = 896, would be the second min or max or whatever
+	std::vector<int> sorted_index(my_data.size());//holds the index of my_data as if it were sorted, i.e. sorted_index[0] =12375 would be
+	//either the min or max or whatever my_data[12375] sorted_index[1] = 896, would be the second min or max or whatever
 
-	//std::vector<int> bin(data.size());
-	hist_st.bin_index.resize(data.size());// = bin;
+	//std::vector<int> bin(my_data.size());
+	hist_st.bin_index.resize(my_data.size());// = bin;
 	std::iota(sorted_index.begin(), sorted_index.end(),0);
-	std::sort(sorted_index.begin(), sorted_index.end(), [&data](T i1, T i2){return data[i1] < data[i2];} );
+	std::sort(sorted_index.begin(), sorted_index.end(), [&my_data](T i1, T i2){return my_data[i1] < my_data[i2];} );
 	stat_acc wh_acc(boost::accumulators::tag::density::num_bins = n_bins, boost::accumulators::tag::density::cache_size = c);
 
 	//fill accumulator
 	for (int j = 0; j < c; ++j)
 	{
-		//myAccumulator(data[j]);
-		wh_acc(data[j]);
+		//myAccumulator(my_data[j]);
+		wh_acc(my_data[j]);
 	}
 
 	//histogram_type hist = boost::accumulators::density(myAccumulator);
@@ -213,10 +239,10 @@ void ComputeHistograms(std::vector<T> &data,Histogram &hist_st, int n_bins){
 		//std::cout << "Bin lower bound: " << hist[i].first << ", Value: " << hist[i].second << std::endl;
 		hist_st.bins.push_back(hist[i].first);
 		hist_st.marginals.push_back(hist[i].second);
-		for(; (it!=sorted_index.end() && data[*it] < hist[i].first); ++it){
+		for(; (it!=sorted_index.end() && my_data[*it] < hist[i].first); ++it){
 			hist_st.bin_index[*it]=i;
-			//cout<<"data[*it] < hist[i].first "<<(data[*it] < hist[i].first)<<endl;
-			//cout<<"value "<<data[*it]<<" n_bin "<<hist_st.bin_index[*it]<<" *it "<<*it<< " Bin lower bound: " << hist[i].first<<endl;
+			//cout<<"my_data[*it] < hist[i].first "<<(my_data[*it] < hist[i].first)<<endl;
+			//cout<<"value "<<my_data[*it]<<" n_bin "<<hist_st.bin_index[*it]<<" *it "<<*it<< " Bin lower bound: " << hist[i].first<<endl;
 
 		}
 
@@ -228,11 +254,17 @@ void ComputeHistograms(std::vector<T> &data,Histogram &hist_st, int n_bins){
 }
 template void ComputeHistograms<double >(std::vector<double> & ,Histogram &, int);
 
+
+/*
+ *
+ *
+ * return vector<double>(4) [0]=first_min value, [1]=lag were first_min occured, [2]=min value, [3]=lag were min occured
+ */
 template<typename T, typename T1>
-void LaggedMI(std::vector<T> pred_vars, std::vector<T1> target, int n_bins, int min_lag, int max_lag, int lag_step){
+std::vector<double> LaggedMI(std::vector<T> pred_vars, std::vector<T1> target, int n_bins, int min_lag, int max_lag, int lag_step){
 
 
-	cout<<"LaggedMI start"<<endl;
+	//cout<<"LaggedMI start"<<endl;
 	int first_min_index = 0;
 	int min_index = 0;
 	double first_min = std::numeric_limits<double>::max();
@@ -243,52 +275,130 @@ void LaggedMI(std::vector<T> pred_vars, std::vector<T1> target, int n_bins, int 
 	std::vector<double > mi_values(len+1);
 	int mi_values_it = 0;
 
+
+	std::vector<std::pair<double, double>> xy_pts_A(mi_values.size()-2);
+
+	std::vector<double> return_values(4);
+
 	//std::vector<double > pred_vars_sub(pred_vars.begin(),pred_vars.end());
 	//std::vector<double > target_sub(target.begin(),target.end());
 
 
+	std::vector<T> my_pred_vars(pred_vars.size());
+	std::vector<T> my_target(target.size());
+
+	//missing data with time series funcks up the datay because if I drop a day it is now two days
+	//but if I drop the day I am also saying that day did not occur
 
 
-	//cout<<"Entropy "<<Stats::Entropy(h1)<<endl;
+	//here fixing this so it handles nan values
+	//also need to adjust the one below as well
 
-	for(int i = min_lag; i<=max_lag; i=i+lag_step){
-		std::vector<T > pred_vars_sub(pred_vars.begin(),pred_vars.end()-i);
-		std::vector<T1> target_sub(target.begin()+i,target.end());
+	std::set<int> indexes_to_remove;
 
-		Stats::Histogram h;
-		Stats::Histogram h1;
-		Stats::ComputeHistograms(target_sub, h1,n_bins);
-		Stats::ComputeHistograms(pred_vars_sub, h,n_bins);
-		mi=Stats::DiscreteMI(h,h1);
-		cout<<"MI "<<mi<<endl;
+	int size_less_nan = target.size();
+	int my_iter = 0;
 
-		if(i >1){
-			if(found_first_min == false){
-				if(first_min >= mi){
-					first_min = mi;
-					first_min_index = i;
-				}
-				else
-					found_first_min = true;
+	if(pred_vars.size()==target.size() ){
+
+		for(int i=0; i<target.size();++i){
+			if(!std::isnan(pred_vars[i]) && !std::isnan(target[i])){
+				my_pred_vars[my_iter] = pred_vars[i];
+				my_target[my_iter] = target[i];
+				++my_iter;
 			}
-			if(min >= mi){
-				min = mi;
-				min_index = i;
-			}
-			//mi_values[i] = mi;
-			mi_values[mi_values_it] = mi;
-			mi_values_it++;
+			else
+				--size_less_nan;
+
 		}
 
+		assert(size_less_nan == my_iter);
+	my_pred_vars.resize(std::distance(my_pred_vars.begin(), my_pred_vars.begin()+my_iter ) );
+	my_target.resize(std::distance(my_target.begin(),my_target.begin()+my_iter ) );
+
+
+		//cout<<"Entropy "<<Stats::Entropy(h1)<<endl;
+
+		for(int i = min_lag; i<=max_lag; i=i+lag_step){
+			std::vector<T > pred_vars_sub(my_pred_vars.begin(),my_pred_vars.end()-i);
+			std::vector<T1> target_sub(my_target.begin()+i,my_target.end());
+
+			Stats::Histogram h;
+			Stats::Histogram h1;
+			Stats::ComputeHistograms(target_sub, h1,n_bins);
+			Stats::ComputeHistograms(pred_vars_sub, h,n_bins);
+			mi=Stats::DiscreteMI(h,h1);
+			//cout<<"MI "<<mi<<endl;
+
+			if(i >1){
+				if(found_first_min == false){
+					if(first_min >= mi){
+						first_min = mi;
+						first_min_index = i;
+					}
+					else
+						found_first_min = true;
+				}
+				if(min >= mi){
+					min = mi;
+					min_index = i;
+				}
+				//mi_values[i] = mi;
+				mi_values[mi_values_it] = mi;
+				if(i < max_lag)
+					xy_pts_A[mi_values_it] = std::make_pair(i,mi);
+				mi_values_it++;
+			}
+
+
+		}
+
+		cout<<"First Min "<< first_min<<" Found at "<<first_min_index<<endl;
+		cout<<"Min "<< min<<" Found at "<<min_index<<endl;
+		return_values[0] = first_min;
+		return_values[1] = first_min_index;
+		return_values[2] = min;
+		return_values[3] = min_index;
+	}
+	else{
+		return_values[0] = std::nan("");
+		return_values[1] =  std::nan("");
+		return_values[2] =  std::nan("");
+		return_values[3] =  std::nan("");
 
 	}
-	cout<<"LaggedMI end"<<endl;
+	//cout<<"LaggedMI end"<<endl;
 	//PlotLine(mi_values, "LaggedMI");
-	cout<<"First Min "<< first_min<<" Found at "<<first_min_index<<endl;
-	cout<<"Min "<< min<<" Found at "<<min_index<<endl;
+
+
+	Gnuplot gp;
+		// For debugging or manual editing of commands:
+		//Gnuplot gp(std::fopen("plot.gnu", "w"));
+		// or
+		//Gnuplot gp("tee plot.gnu | gnuplot -persist");
+
+	//	gp<<"set xtics rotate\n";
+		//gp << "set xrange ["+dates[0]+":"+dates[dates.size()-1]+"]\nset yrange ["+std::to_string(*min)+":"+std::to_string(*max)+"]\n";
+	//	gp << "set xrange [0:"+std::to_string(f.size()-1)+"]\nset yrange ["+std::to_string(*fmin)+":"+std::to_string(*fmax)+"]\n";
+
+	//	gp.precision(5);
+	//	gp<<"set format \"%5.5f\"\n";
+		//gp<<"set term png size 15000 15000\n";
+		gp<<"set term png size 700,300\n";
+		gp<<"set output "<<"'/home/ryan/Nifty/LaggedMI.png'"<<"\n";
+		//gp<<"set xtics 0,.2,10\n";
+		//gp<<"plot '-' using 2:xtic(1) with lines\n";
+		//gp<<"plot '-' using 2:xtic(1) with histogram\n";
+		//gp<<"plot '-' using 2 with lines\n";
+		//gp<<"set style lines\n";
+		gp<<"plot '-' using 2 with lines\n";
+		gp.send1d(xy_pts_A);
+
+	return return_values;
 
 }
-template void LaggedMI<float, double>(std::vector<float> pred_vars, std::vector<double> target, int n_bins, int min_lag, int max_lag, int lag_step);
+template std::vector<double> LaggedMI<float, double>(std::vector<float> pred_vars, std::vector<double> target, int n_bins, int min_lag, int max_lag, int lag_step);
+template std::vector<double> LaggedMI<double, double>(std::vector<double> pred_vars, std::vector<double> target, int n_bins, int min_lag, int max_lag, int lag_step);
 
 
 void LaggedMI(std::vector<std::vector<double> > embedVect, std::vector<double > vect_y_alligned, int n_bins){
@@ -345,45 +455,45 @@ double DiscreteMI(Histogram &pred_hist_st, Histogram &target_hist_st)
 {
 
 	int n_cases = pred_hist_st.bin_index.size()-1;//number of rows in vector
-		int n_bins_pred = pred_hist_st.marginals.size()-1;
-		int n_bins_target = target_hist_st.marginals.size()-1;
-		std::vector<int > temp(target_hist_st.bins.size());
-		std::vector<std::vector<int > > contingency_table(target_hist_st.bins.size(),temp);
+	int n_bins_pred = pred_hist_st.marginals.size()-1;
+	int n_bins_target = target_hist_st.marginals.size()-1;
+	std::vector<int > temp(target_hist_st.bins.size());
+	std::vector<std::vector<int > > contingency_table(target_hist_st.bins.size(),temp);
 
 
-		pred_hist_st.contingency_table.resize(pred_hist_st.bins.size());
-		for(int i =0; i<pred_hist_st.contingency_table.size();++i)
-			pred_hist_st.contingency_table[i].resize(target_hist_st.bins.size());
+	pred_hist_st.contingency_table.resize(pred_hist_st.bins.size());
+	for(int i =0; i<pred_hist_st.contingency_table.size();++i)
+		pred_hist_st.contingency_table[i].resize(target_hist_st.bins.size());
 
-   int i, j ;
-   double px, py, pxy, MI ;
+	int i, j ;
+	double px, py, pxy, MI ;
 
-   /*for (i=0 ; i<n_bins_pred ; i++) {      // Zero bin counts
+	/*for (i=0 ; i<n_bins_pred ; i++) {      // Zero bin counts
       for (j=0 ; j<n_bins_target ; j++)
          bin_counts[i*n_bins_target+j] = 0 ;
       }*/
 
 
-   for(uint it = 0; it<pred_hist_st.bin_index.size(); ++it){
-   		pred_hist_st.contingency_table[pred_hist_st.bin_index[it]][target_hist_st.bin_index[it]]++;
-   		//for(int target_it = 0; target_it<target_hist_st.bin_index.size(); ++target_it)
-   	}
+	for(uint it = 0; it<pred_hist_st.bin_index.size(); ++it){
+		pred_hist_st.contingency_table[pred_hist_st.bin_index[it]][target_hist_st.bin_index[it]]++;
+		//for(int target_it = 0; target_it<target_hist_st.bin_index.size(); ++target_it)
+	}
 
-   //for (i=0 ; i<ncases ; i++)
-   //   ++bin_counts[pred_bin[i]*nbins_target+target_bin[i]] ;
+	//for (i=0 ; i<ncases ; i++)
+	//   ++bin_counts[pred_bin[i]*nbins_target+target_bin[i]] ;
 
-   MI = 0.0 ;
-   for (i=0 ; i<n_bins_pred ; i++) {
-      px = pred_hist_st.marginals[i]; //pred_marginal[i] ;
-      for (j=0 ; j<n_bins_target ; j++) {
-         py = target_hist_st.marginals[j];//target_marginal[j] ;
-         pxy = (double) pred_hist_st.contingency_table[i][j]/ (double) n_cases;//(double) bin_counts[i*n_bins_target+j] / (double) n_cases ;
-         if (pxy > 0.0 && px > 0.0 && py > 0.0)
-            MI += pxy * log ( pxy / (px * py) ) ;
-         }
-      }
+	MI = 0.0 ;
+	for (i=0 ; i<n_bins_pred ; i++) {
+		px = pred_hist_st.marginals[i]; //pred_marginal[i] ;
+		for (j=0 ; j<n_bins_target ; j++) {
+			py = target_hist_st.marginals[j];//target_marginal[j] ;
+			pxy = (double) pred_hist_st.contingency_table[i][j]/ (double) n_cases;//(double) bin_counts[i*n_bins_target+j] / (double) n_cases ;
+			if (pxy > 0.0 && px > 0.0 && py > 0.0)
+				MI += pxy * log ( pxy / (px * py) ) ;
+		}
+	}
 
-   return MI ;
+	return MI ;
 }
 
 
@@ -464,6 +574,53 @@ double correlation(int var_num, std::vector<std::vector<T> > &data, std::vector<
 	return xy / sqrt ( xvar * yvar ) ;
 }
 template double correlation<double, double>(int, std::vector<std::vector<double> > &, std::vector<double> &);
+
+/*
+ * @brief: computes pearson correlation R
+ *
+ * @param int varnum column number of variable
+ * @tparam_T vector<vector<T> > data: martix of variables
+ * @tparam_T1 vector<T1> target: target variable
+ */
+template<typename T, typename T1>
+double correlation(std::vector<T> &data, std::vector<T1> &target)
+{
+
+	//cout<<typeid(data).name()<<endl;// returns something like this St6vectorIS_IdSaIdEESaIS1_EE and you can then search the string to find the type
+	int n_cases = data.size();//number of rows in vector
+
+	int icase ;
+	double xdiff, ydiff, xmean, ymean, xvar, yvar, xy ;
+
+
+	xmean = ymean = 0.0 ;
+	for (icase=0 ; icase<data.size() ; icase++) {
+		if( !std::isnan(data[icase]) && !std::isnan(target[icase]) ){
+			xmean += data[icase];
+			ymean += target[icase] ;
+		}
+		else
+			--n_cases;
+	}
+	xmean /= n_cases ;
+	ymean /= n_cases ;
+
+	xvar = yvar = xy = 1.e-30 ;
+	for (icase=0 ; icase<data.size() ; icase++) {
+		if(!std::isnan(data[icase]) && !std::isnan(target[icase]) ){
+			xdiff = data[icase];
+			ydiff = target[icase] - ymean ;
+			xvar += xdiff * xdiff ;
+			yvar += ydiff * ydiff ;
+			xy += xdiff * ydiff ;
+		}
+	}
+
+	return xy / sqrt ( xvar * yvar ) ;
+}
+template double correlation<double, double>(std::vector<double> &, std::vector<double> &);
+
+
 
 /*
  * THIS WAS NOT WORKING FOR THE LANL DATA SET
@@ -618,6 +775,24 @@ double StdDev(std::vector<T> data){
 
 	return std::sqrt(boost::math::statistics::variance(data.begin(), data.end()));
 }
+
+template<typename T>
+std::vector<double> DiffSeries(std::vector<T> &data){
+
+	std::vector<double> return_data(data.size());
+
+	int old_value=0;
+	return_data[0] = std::nan("");
+	for(uint new_value=1; new_value<data.size(); ++new_value,++old_value ){
+		return_data[new_value] = ((double)data[new_value]-(double)data[old_value]);
+
+	}
+
+	return return_data;
+
+}
+template std::vector<double> DiffSeries<double>(std::vector<double> &);
+template std::vector<double> DiffSeries<long double>(std::vector<long double> &);
 
 void two_samples_t_test_equal_sd(
         double Sm1,
@@ -1022,13 +1197,11 @@ template void GetUniqueCounts<long double>(std::vector<std::vector<long double> 
 /*
  * @brief: 	uses the scipy implementation of the lomb-scargle, but it converts frequencies into angular frequencies, and give the option to center values and
  * 			normalize the periodogram, autopower is based off of astropy autopower method
- * @tparam:	vector<T> 	times:			times corresponding to data in values
- * @tparam:	vector<T1>	values:			measurement values
- * @tparam:	vector<T2>	frequencies:	frequencies for output of periodogram
+ * @tparam:	vector<T> 	&times:			times corresponding to data in values
+ * @tparam:	vector<T1>	&values:			measurement values
+ * @tparam:	vector<T2>	&frequencies:	frequencies for output of periodogram
  * @param:	bool 		center_data:	default = true: subtract the mean
  * @param:	string 		normalization:	default = standard: standardize the periodogram
- *
- *
  *
  */
 
@@ -1163,7 +1336,7 @@ template std::vector<double> LombScargle<int,double,double>(std::vector<int> &, 
  *
  */
 template<typename T, typename T1>
-std::vector<T> AutoFrequency(std::vector<T1> times, std::experimental::optional<double> samples_per_peak, std::experimental::optional<double> nyquist_factor, std::experimental::optional<double> minimum_frequency,
+std::vector<T> AutoFrequency(std::vector<T1> &times, std::experimental::optional<double> samples_per_peak, std::experimental::optional<double> nyquist_factor, std::experimental::optional<double> minimum_frequency,
 		std::experimental::optional<double> maximum_frequency,std::experimental::optional<bool> return_freq_limits){
 
 
@@ -1177,16 +1350,7 @@ std::vector<T> AutoFrequency(std::vector<T1> times, std::experimental::optional<
 	maximum_frequency=maximum_frequency.value_or(0.00);
 	return_freq_limits=return_freq_limits.value_or(false);
 
-
-
-
 	std::cout<<"samples_per_peak "<< *samples_per_peak<<" nyquist_factor "<<*nyquist_factor<<" minimum_frequency "<<*minimum_frequency<< " maximum_frequency "<< *maximum_frequency<<" return_freq_limits "<< *return_freq_limits<<std::endl;
-
-
-
-
-
-
 
 	auto [fmin, fmax] = std::minmax_element(std::begin(times), std::end(times));
 
@@ -1208,8 +1372,6 @@ std::vector<T> AutoFrequency(std::vector<T1> times, std::experimental::optional<
 
 	int Nf = 1 + ::round(((*maximum_frequency - *minimum_frequency) / df));
 
-
-
 	if( *return_freq_limits){
 		std::vector<T> frequencies(2);
 		frequencies[0] = *minimum_frequency;
@@ -1230,8 +1392,419 @@ std::vector<T> AutoFrequency(std::vector<T1> times, std::experimental::optional<
 
 
 }
-template std::vector<double> AutoFrequency<double, double>(std::vector<double> times, std::experimental::optional<double> samples_per_peak, std::experimental::optional<double> nyquist_factor, std::experimental::optional<double> minimum_frequency,
+template std::vector<double> AutoFrequency<double, double>(std::vector<double> &times, std::experimental::optional<double> samples_per_peak, std::experimental::optional<double> nyquist_factor, std::experimental::optional<double> minimum_frequency,
 		std::experimental::optional<double> maximum_frequency,std::experimental::optional<bool> return_freq_limits);
+
+
+
+
+
+
+
+
+
+/*
+ *
+ * @brief 	Level of maximum at a given false alarm probability. This gives an estimate of the periodogram level corresponding to a
+ * 			specified false alarm probability for the largest peak, assuming a
+ * 			null hypothesis of non-varying data with Gaussian noise.
+ *
+ * 			 The data needs to be centered-> this is done in LombScargle
+ *
+ * 			 This is a C++ implmentation of https://github.com/astropy/astropy
+ *
+ *
+ * @tparam:	vector<T> 	times:							times corresponding to data in values
+ * @tparam:	vector<T1>	values:							measurement values
+ * @param:	vector<double>	false_alarm_probability:	The false alarm probability (0 < fap < 1).
+ * @param: optional<string>	method:						default='baluev' The approximation method to use;  options are 'baluev', 'davies', 'naive', 'bootstrap'
+ * @param optional<double>	samples_per_peak:			defualt = 5: The approximate number of desired samples across the typical peak
+ * @param optional<double>	nyquist_factor:				defualt = 5: The multiple of the average nyquist frequency used to choose the maximum frequency if maximum_frequency is not provided.
+ * @param optional<double>	maximum_frequency:			If specified, then use this maximum frequency rather than one chosen based on the average nyquist frequency.
+ *
+ * @return map<double, double>		return:	Key = false alarm probability, value= false alarm level for respectve probability  The periodogram peak height corresponding to the specified false alarm probability.
+ *
+ *  Notes
+        -----
+        The true probability distribution for the largest peak cannot be
+        determined analytically, so each method here provides an approximation
+        to the value. The available methods are:
+
+        - "baluev" (default): the upper-limit to the alias-free probability,
+          using the approach of Baluev (2008) [1]_.
+        - "davies" : the Davies upper bound from Baluev (2008) [1]_.
+        - "naive" : the approximate probability based on an estimated
+          effective number of independent frequencies.
+        - "bootstrap" : the approximate probability based on bootstrap
+          resamplings of the input data.
+
+        Note also that for normalization='psd', the distribution can only be
+        computed for periodograms constructed with errors specified.
+
+        References
+        ----------
+        .. [1] Baluev, R.V. MNRAS 385, 1279 (2008)
+ *
+ *
+ */
+
+template<typename T, typename T1>
+std::map<double, double> false_alarm_level(std::vector<T> &times, std::vector<T1> &values, std::vector<double> &false_alarm_probability, std::experimental::optional<std::string> method,std::experimental::optional<double> samples_per_peak,
+		std::experimental::optional<double> nyquist_factor, std::experimental::optional<double> minimum_frequency,std::experimental::optional<double> maximum_frequency){
+
+
+	method = method.value_or("baluev");
+	samples_per_peak = samples_per_peak.value_or(5.0);
+
+	nyquist_factor= nyquist_factor.value_or(5.0);
+	minimum_frequency=minimum_frequency.value_or(0.0);
+	maximum_frequency=maximum_frequency.value_or(0.00);
+	std::string normalization = "standard";
+
+	std::vector<double> my_min_max({0.0000,0.00000});
+	double fmax=0.00;
+	double val_returned = 0.000;
+	std::map<double, double> false_alarm_levels_val;
+
+
+	if(*maximum_frequency ==0){
+		my_min_max = Stats::AutoFrequency<double,T>(times,samples_per_peak ,nyquist_factor,minimum_frequency,maximum_frequency, true);
+		fmax = my_min_max[1];
+	}
+	else{
+		fmax = *maximum_frequency;
+
+	}
+
+
+	for(auto i:false_alarm_probability){
+
+		if(method.value().compare("baluev") == 0)
+			val_returned = Stats::inv_fap_baluev<double,double>(i,fmax, times,values,normalization);
+
+		false_alarm_levels_val[i] = val_returned;
+
+	}
+
+	return false_alarm_levels_val;
+
+
+}
+template std::map<double, double> false_alarm_level(std::vector<double> &, std::vector<double> &, std::vector<double> &, std::experimental::optional<std::string> ,std::experimental::optional<double> ,
+		std::experimental::optional<double> , std::experimental::optional<double> ,std::experimental::optional<double> );
+
+
+
+
+/*
+ * @brief: Struct used to hold data for passing to functions when using cminpack
+ *
+ */
+template<typename T, typename T1>
+struct LombScargleFAP{
+	std::vector<T> *t;
+	std::vector<T1> *y;
+	double fmax;
+	double false_alarm_probability;
+
+};
+
+int fcn( void *p , int M, int N,const double *X, double *FVEC, int IFLAG){
+
+
+	struct Stats::LombScargleFAP<double, double> *ls = (struct Stats::LombScargleFAP<double,double> *)p;
+
+	double x_ =0.0;
+	double fmax_ = ls->fmax;
+	std::vector<double> t;
+	std::vector<double> y;
+
+	FVEC[0] = Stats::fap_baluev<double,double>(X[0],fmax_,*ls->t, *ls->y, 1, "standard")-ls->false_alarm_probability;
+
+return 0;
+
+};
+
+/*
+ * @brief:	Inverse of the Baluev alias-free approximation
+ * 			This is a C++ implmentation of https://github.com/astropy/astropy
+ * 
+ * @param 	double		 fap:				The false alarm probability (0 < fap < 1).
+ * @param 	double 		maximum_frequency:	If specified, then use this maximum frequency rather than one chosen based on the average nyquist frequency.
+ * @tparam	vector<T> 	times				times corresponding to data in values
+ * @tparam	vector<T1>	values:				measurement values
+ * @param	string		normalization:		default = standard: standardize the periodogram
+ * 
+ */
+
+template<typename T, typename T1>
+double inv_fap_baluev(double fap, double maximum_frequency, std::vector<T> &times, std::vector<T1> &values, std::string normalization){
+    //"""Inverse of the Baluev alias-free approximation"""
+  
+   double z0 = 0.0000000;
+   z0 =Stats::inv_fap_naive<double,double>(fap,maximum_frequency,times,normalization);
+
+   LombScargleFAP<double, double> what;
+
+   what.t = &times;
+   what.y = &values;
+   what.fmax = maximum_frequency;
+   what.false_alarm_probability = fap;
+
+   int m=1;//times.size();
+   int n= 1;
+   double x[n];
+   double fvec[m];
+   double ftol = 1.49012e-8;
+   double xtol = 1.49012e-8;
+   double gtol = 0.0;
+   int maxfev = -10;
+   double epsfcn = 0.0;
+   double diag[n];
+   int mode = 2;
+   double factor = 1.0e2;
+   int nprint = 0;
+   int info = 0;
+   int nfev;
+   double fjac[m*n];
+   int ldfjac;
+   int ipvt[n];
+   double qtf[n];
+   double wa1[n];
+   double wa2[n];
+   double wa3[n];
+   double wa4[m];
+
+   if (maxfev < 0)
+	   maxfev = 200*(n+1);
+
+   x[0]= z0;
+   fvec[0]= z0;
+
+   info = __cminpack_func__(lmdif)(fcn, &what, m, n, x, fvec, ftol, xtol, gtol, maxfev, epsfcn, diag, mode, factor, nprint, &nfev, fjac,
+		   ldfjac, ipvt, qtf, wa1, wa2, wa3, wa4);
+
+
+   return x[0];
+}
+template double inv_fap_baluev<double,double>(double , double , std::vector<double> &t, std::vector<double> &y, std::string normalization);
+
+/*
+ * @brief:	Inverse FAP based on estimated number of indep frequencies
+ * 			This is a C++ implmentation of https://github.com/astropy/astropy
+ *
+ * @param 	double		 fap:				The false alarm probability (0 < fap < 1).
+ * @tparam	vector<T> 	times				times corresponding to data in values
+ * @param	string		normalization:		default = standard: standardize the periodogram
+ *
+ */
+template<typename T, typename T1>
+double inv_fap_naive(double fap, double fmax, std::vector<T> &t, std::string normalization){
+    //Inverse FAP based on estimated number of indep frequencies
+    //fap = np.asarray(fap)
+    int N = t.size();
+
+    auto [my_min, my_max] = std::minmax_element(std::begin(t), std::end(t));
+    T my_T = my_max - my_min;
+    double N_eff = fmax * my_T;
+
+    long double fap_s = -std::expm1(std::log(1 - fap) / N_eff);
+    return Stats::inv_fap_single(fap_s, N, normalization);
+
+}
+template double inv_fap_naive<double,double>(double, double, std::vector<double> &, std::string);
+
+double inv_fap_single(double fap, int N, std::string normalization, int dH, int dK){
+    /*"""Single-frequency inverse false alarm probability
+
+    This function computes the periodogram value associated with the specified
+    single-frequency false alarm probability. This should not be confused with
+    the false alarm level of the largest peak.
+
+    Parameters
+    ----------
+    fap : array_like
+        The false alarm probability.
+    N : int
+        The number of data points from which the periodogram was computed.
+    normalization : {'standard', 'model', 'log', 'psd'}
+        The periodogram normalization.
+    dH, dK : integers, optional
+        The number of parameters in the null hypothesis and the model.
+
+    Returns
+    -------
+    z : np.ndarray
+        The periodogram power corresponding to the single-peak false alarm
+        probability.
+
+    Notes
+    -----
+    For normalization='psd', the distribution can only be computed for
+    periodograms constructed with errors specified.
+    All expressions used here are adapted from Table 1 of Baluev 2008 [1]_.
+
+    References
+    ----------
+    .. [1] Baluev, R.V. MNRAS 385, 1279 (2008)
+    """*/
+
+	//fap = np.asarray(fap)
+
+//	make this a map or just return a vector in the order they were put in??
+
+	if(dK - dH != 2)
+		std::cout<<"Degrees of freedom != 2"<<std::endl;
+	int Nk = N - dK;
+
+	// # No warnings for fap = 0; rather, just let it give the right infinity.
+	// with np.errstate(divide='ignore'):
+	if(normalization.compare("psd")==0)
+		return -std::log(fap);
+	else if(normalization.compare("standard")== 0)
+		return 1 - std::pow(fap ,(2.00 / Nk));
+	else if(normalization.compare("model") == 0)
+		return -1 + std::pow(fap ,(-2.00 / Nk));
+	else if(normalization.compare("log") == 0)
+		return -2 / Nk * std::log(fap);
+	else{
+		std::cout<<"normalization='{}' is not recognized "<< normalization<<std::endl;
+		return -1.0000;
+	}
+
+
+}
+
+template<typename T, typename T1>
+double fap_baluev(double Z, double fmax, std::vector<T> &t, std::vector<T1> &y, double dy , std::string normalization){
+    //"""Alias-free approximation to false alarm probability
+
+    //(Eqn 6 of Baluev 2008)
+    //"""
+
+    double fap_s = Stats::fap_single(Z, t.size(), normalization);
+    double tau = Stats::tau_davies(Z, fmax, t, y, dy, normalization);
+
+
+//    # result is 1 - (1 - fap_s) * np.exp(-tau)
+//    # this is much more precise for small numbers
+    return ((-std::expm1(-tau) + fap_s * std::exp(-tau)));
+
+}
+template double fap_baluev<double, double>(double, double, std::vector<double> &, std::vector<double> &, double, std::string);
+
+
+
+double fap_single(double z, int N, std::string normalization, int dH, int dK){
+	/*"""Single-frequency false alarm probability for the Lomb-Scargle periodogram
+
+	    This is equal to 1 - cdf, where cdf is the cumulative distribution.
+	    The single-frequency false alarm probability should not be confused with
+	    the false alarm probability for the largest peak.
+
+	    Parameters
+	    ----------
+	    z : array_like
+	        The periodogram value.
+	    N : int
+	        The number of data points from which the periodogram was computed.
+	    normalization : {'standard', 'model', 'log', 'psd'}
+	        The periodogram normalization.
+	    dH, dK : integers, optional
+	        The number of parameters in the null hypothesis and the model.
+
+	    Returns
+	    -------
+	    false_alarm_probability : np.ndarray
+	        The single-frequency false alarm probability.
+
+	    Notes
+	    -----
+	    For normalization='psd', the distribution can only be computed for
+	    periodograms constructed with errors specified.
+	    All expressions used here are adapted from Table 1 of Baluev 2008 [1]_.
+
+	    References
+	    ----------
+	    .. [1] Baluev, R.V. MNRAS 385, 1279 (2008)
+	    """*/
+	//z = np.asarray(z)
+	if(dK - dH != 2)
+		std::cout<<"Error Degrees of freedom != 2"<<std::endl;
+	double Nk = (double)N - (double)dK;
+
+	if(normalization.compare("psd") == 0)
+		return std::exp(-z);
+	else if(normalization.compare("standard") == 0)
+		return std::pow((1 - z),(0.5 * Nk));
+	else if(normalization.compare("model") == 0)
+		return std::pow((1 + z),(-0.5 * Nk));
+	else if(normalization.compare("log") == 0)
+		return std::exp(-0.5 * Nk * z);
+	else{
+		std::cout<<"normalization="<<normalization<<" is not recognized"<<std::endl;
+		return -1.0000;
+	}
+
+
+}
+
+
+double _gamma(double N){
+
+	return std::sqrt(2 / N) * std::exp(::lgamma(N / 2.0) - ::lgamma((N - 1.0) / 2.0));
+}
+
+
+template<typename T, typename T1>
+double tau_davies(double Z, double fmax, std::vector<T> &t, std::vector<T1> &y, double dy, std::string normalization, double dH, double dK){
+    //"""tau factor for estimating Davies bound (Baluev 2008, Table 1)"""
+    int N = t.size();
+    double NH = N - dH;//# DOF for null hypothesis
+    double NK = N - dK;//# DOF for periodic hypothesis
+
+    bacc::accumulator_set<T, bacc::stats< bacc::tag::weighted_mean, bacc::tag::mean>, T> acc;
+    bacc::accumulator_set<T, bacc::stats< bacc::tag::weighted_mean, bacc::tag::mean>, T> acc_squared;
+
+    for(auto i:t){
+    	acc(i, boost::accumulators::weight = dy);
+    	acc_squared(std::pow(i,2),boost::accumulators::weight = dy);
+    }
+
+    double Dt = bacc::weighted_mean(acc_squared)-std::pow(bacc::weighted_mean(acc),2);//_weighted_var(t, dy);
+
+    double my_pi=3.1415926535897932384626433832795029l;
+
+    double Teff = std::sqrt(4 * my_pi * Dt);// # Effective baseline
+    double W = fmax * Teff;
+    //Z = np.asarray(Z)
+    if(normalization.compare("psd")==0)
+    	//# 'psd' normalization is same as Baluev's z
+    	return W * std::exp(-Z) * std::sqrt(Z);
+    else if(normalization.compare("standard")==0)
+    	//# 'standard' normalization is Z = 2/NH * z_1
+    	return (Stats::_gamma(NH) * W * std::pow((1 - Z),(0.5 * (NK - 1)) )
+    			* std::sqrt(0.5 * NH * Z));
+    else if(normalization.compare("model")==0)
+    	//# 'model' normalization is Z = 2/NK * z_2
+    	return (Stats::_gamma(NK) * W * std::pow((1 + Z), (-0.5 * NK))
+    			* std::sqrt(0.5 * NK * Z));
+    else if(normalization.compare("log")==0)
+    	//# 'log' normalization is Z = 2/NK * z_3
+    	return (Stats::_gamma(NK) * W * std::exp(-0.5 * Z * (NK - 0.5))
+    			* std::sqrt(NK * std::sinh(0.5 * Z)));
+    else
+    	return -1.0000;
+
+
+}
+template double tau_davies<double, double>(double, double, std::vector<double> &, std::vector<double> &, double, std::string,double,double);
+
+
+
+
+
+
 
 
 
@@ -1318,6 +1891,56 @@ void ShapiroWilksGretl(std::map<std::string, std::vector<double> > &data, bool t
 	}
 }
 
+void ShapiroWilksGretl(DATASET *dset, std::vector<double> variables, bool transform){
+	//Test for normality
+	double w= 0;
+	double p=0;
+	std::vector<double> transformed;
+
+//	if(!transform){
+//		for(auto variable_iter : variables){
+//
+//			if(::shapiro_wilk(dset->Z[variable_iter], 0, dset->n, &w,&p ) == 0 ){
+//
+//				if(p>=.05)
+//					std::cout<<"Normal Distributions "<<variable_iter<<" W "<<w<<"P value: "<<p<<std::endl;
+//				else
+//					std::cout<<"Not Normal Distributions "<<variable_iter<<" W "<<w<<"P value: "<<p<<std::endl;
+//			}
+//			else{
+//				std::cout<<"Shapiro Wilkes Test Failed "<variable_iter<<" Size of data set "<<dset->n<<std::endl;
+//				/*for(uint i =0; i<data_iter->second.size()-1; ++i){
+//					if(data_iter->second[i]>0)
+//						std::cout<<data_iter->second[i]<<std::endl;
+//				}*/
+//			}
+//		}
+//	}
+//	else{
+//		for(auto variable_iter : variables){
+//			transformed.resize(dset->n);
+//			for(uint i=0; i<transformed.size(); ++i)
+//				transformed[i] = std::log1p(dset->Z[*variable_iter][i]);
+//
+//			if(::shapiro_wilk(transformed.data(), 0, transformed.size()-1, &w,&p ) == 0 ){
+//
+//				if(p>=.05)
+//					std::cout<<"Normal Distributions "<<variable_iter<<" W "<<w<<"P value: "<<p<<std::endl;
+//				else
+//					std::cout<<"Not Normal Distributions "<<variable_iter<<" W "<<w<<"P value: "<<p<<std::endl;
+//			}
+//			else{
+//				std::cout<<"Shapiro Wilkes Test Failed "<variable_iter<<" Size of data set "<<dset->n<<std::endl;
+//				/*for(uint i =0; i<data_iter->second.size()-1; ++i){
+//					if(data_iter->second[i]>0)
+//						std::cout<<data_iter->second[i]<<std::endl;
+//				}*/
+//			}
+//		}//end Test for normality
+//	}
+}
+
+
 /*
  * @brief: perform an arima
  *
@@ -1382,15 +2005,20 @@ int ArmaEstimateGretl (DATASET *dset, PRN *prn, MODEL *model, int p, int d, int 
  * @param bool			no_plot:	true == display plot of hurst exponents
  *
  */
-double HurstExponentGretl(const int *list, DATASET *dset, gretlopt opt,PRN *prn, bool no_plot){
+double HurstExponentGretl(const int *list, DATASET *dset, gretlopt opt,PRN *prn, bool no_plot, std::string path_name){
 
 	int err = 0;
 	double my_hurst_exponent = -1.00000;
 	gretl_matrix *hurst_mat;// = NULL;
 	GretlType *hurst_ = new GretlType;
 
-	//if(!no_plot)
+	if(!no_plot){
+		if(path_name.compare("-1") != 0){
+			path_name.append("_hurst.png");
+			set_optval_string(::HURST, OPT_U, path_name.c_str());
+		}
 		err = hurstplot(list, dset, opt,prn);
+	}
 
 	hurst_mat = reinterpret_cast<gretl_matrix *>(get_last_result_data (hurst_, &err));
 	my_hurst_exponent = hurst_mat->val[0];
@@ -1416,7 +2044,7 @@ double HurstExponentGretl(const int *list, DATASET *dset, gretlopt opt,PRN *prn,
  * 																					were map.key = lag, and map.value = acf/pacf value
  *
  */
-std::pair<std::map<double, int>,std::map<double, int> > CorrgramGretl(int varno, int max_lag, DATASET *dset, gretlopt opt, PRN *prn){
+std::pair<std::map<double, int>,std::map<double, int> > CorrgramGretl(int varno, int max_lag, DATASET *dset, gretlopt opt, PRN *prn, std::string path_name){
 
 	int err = 0;
 	gretl_matrix *cmat;
@@ -1443,6 +2071,10 @@ std::pair<std::map<double, int>,std::map<double, int> > CorrgramGretl(int varno,
 			if(i>=cmat->rows){
 				pacf_values[cmat->val[i]] = i-cmat->rows;
 			}
+		}
+		if(path_name.compare("-1") != 0){
+			path_name.append("_correlogram.png");
+			set_optval_string(::CORRGM, OPT_U, path_name.c_str());
 		}
 		correlogram_plot(dset->varname[varno], acf, pacf, NULL,
 				max_lag, pm, opt);
@@ -1471,11 +2103,12 @@ std::pair<std::map<double, int>,std::map<double, int> > CorrgramGretl(int varno,
  * 									OPT_L == ln
  * @param PRN			*prn:		Gretl print pointer
  * @param bool			no_plot:	true == display plot and out put spectral_density_period values
+ * @param string		path_name:	default = -1, saves plot if to value of path_name if provided
  *
  * @return std::map<double, double>		spectral_density_period .first == sprectral density, .second = period
  *
  */
-std::map<double, double> PeriodogramGretl(int varno, int width, DATASET *dset, gretlopt opt, PRN *prn, bool no_plot){
+std::map<double, double> PeriodogramGretl(int varno, int width, DATASET *dset, gretlopt opt, PRN *prn, bool no_plot, std::string path_name){
 
 
 	int err;
@@ -1487,8 +2120,13 @@ std::map<double, double> PeriodogramGretl(int varno, int width, DATASET *dset, g
 	std::map<double,double> spectral_density_period;
 
 
-	if(!no_plot)
+	if(!no_plot){
+		if(path_name.compare("-1") != 0){
+			path_name.append("_periodogram.png");
+			set_optval_string(::PERGM, OPT_U, path_name.c_str());
+		}
 		periodogram(varno, width, dset, opt, prn);
+	}
 
 	if(opt == OPT_O){
 		if(width < 0)//see https://gretlml.univpm.it/hyperkitty/list/gretl-users@gretlml.univpm.it/thread/ADMUPRNQYE4N6AHQBK3QCSO57MBX7464/
@@ -1511,7 +2149,7 @@ std::map<double, double> PeriodogramGretl(int varno, int width, DATASET *dset, g
 
 	}
 
-	if(!no_plot){
+	if(no_plot){
 		for(auto i : spectral_density_period)
 			std::cout<<i.first<<" "<<i.second<<std::endl;
 	}
@@ -1533,7 +2171,13 @@ Summary *SummaryGretl(const DATASET *dset, PRN *prn, int *err){
 
 	Summary *summary;
 	gretlopt opt = OPT_NONE;//OPT_U;//OPT_B;
-	int list1[2] = {1,0};
+	//int list1[2] = {1,0};
+
+	int list1[dset->v+1];
+
+	list1[0] = dset->v;
+	for(int i=1; i<=dset->v; ++i)
+		list1[i] = i-1;
 
 	summary = get_summary(list1,dset, opt,prn,err);
 
@@ -1563,28 +2207,32 @@ void AnalyzeACFPACF(std::pair<std::map<double, int>,std::map<double, int> > acf_
 	std::map<double, int>::reverse_iterator acf_iter = acf_pacf_values.first.rbegin();
 	std::map<double, int>::reverse_iterator pacf_iter= acf_pacf_values.second.rbegin();
 
-	double acf = acf_iter->first;
-	double acf_lag = acf_iter->second;
+	if(acf_pacf_values.first.size()>0 && acf_pacf_values.second.size()>0){
+		double acf = acf_iter->first;
+		double acf_lag = acf_iter->second;
 
-	for(;acf_iter!=acf_pacf_values.first.rend();++acf_iter,++pacf_iter){
-		if(acf_iter->first > ci){
-			if(std::abs(acf_iter->second) > max_lag_above_ci_acf && acf_iter->second != 1){
-				max_lag_above_ci_acf = acf_iter->second;
+		for(;acf_iter!=acf_pacf_values.first.rend();++acf_iter,++pacf_iter){
+			if(acf_iter->first > ci){
+				if(std::abs(acf_iter->second) > max_lag_above_ci_acf && acf_iter->second != 1){
+					max_lag_above_ci_acf = acf_iter->second;
+				}
+				else if(std::abs(acf_iter->second) < min_lag_above_ci_acf){
+					min_lag_above_ci_acf = acf_iter->second;
+				}
 			}
-			else if(std::abs(acf_iter->second) < min_lag_above_ci_acf){
-				min_lag_above_ci_acf = acf_iter->second;
-			}
-		}
 
-		if(pacf_iter->first > ci){
-			if(std::abs(pacf_iter->second) > max_lag_above_ci_pacf && pacf_iter->second != 1){
-				max_lag_above_ci_pacf = pacf_iter->second;
-			}
-			else if(std::abs(pacf_iter->second) < min_lag_above_ci_pacf){
-				min_lag_above_ci_pacf = pacf_iter->second;
+			if(pacf_iter->first > ci){
+				if(std::abs(pacf_iter->second) > max_lag_above_ci_pacf && pacf_iter->second != 1){
+					max_lag_above_ci_pacf = pacf_iter->second;
+				}
+				else if(std::abs(pacf_iter->second) < min_lag_above_ci_pacf){
+					min_lag_above_ci_pacf = pacf_iter->second;
+				}
 			}
 		}
 	}
+	else
+		std::cout<<"Error AnalyzeACFPACF acf size "<<acf_pacf_values.first.size()<<" pacf size "<<acf_pacf_values.second.size()<<std::endl;
 
 
 
