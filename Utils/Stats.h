@@ -35,7 +35,7 @@
 #include <boost/accumulators/statistics/rolling_window.hpp>
 #include <boost/accumulators/statistics/rolling_mean.hpp>
 #include <boost/accumulators/statistics/rolling_variance.hpp>
-
+#include <boost/math/statistics/univariate_statistics.hpp>
 #include <boost/math/statistics/t_test.hpp>
 
 /*
@@ -46,8 +46,7 @@
 #include "cvplot.h"
 */
 
-#include <torch/torch.h>
-#include <torch/script.h> // One-stop header.
+#include <PyTorchData.h>
 
 #include <algorithm>
 #include <numeric>
@@ -470,7 +469,9 @@ enum {
 
 namespace Stats{
 
+#if USE_DATAFRAME
 typedef hmdf::StdDataFrame<ulong> MyDataFrame;
+#endif
 
 struct Histogram {
 
@@ -495,7 +496,9 @@ void PlotHist(Histogram &hist_st, std::string file_path, std::string file_name);
 template< typename T >
 void PlotLine(std::vector<T> &data, std::string name);
 template< typename T >
-void ComputeHistograms(std::vector<T> &data,Histogram &hist_st, int n_bins = 10);
+void ComputeHistograms(std::vector<T> &data,Histogram &hist_st, int n_bins = 0);
+template<typename T>
+void ComputeHistograms(DATASET *dset, Histogram &hist_st, int varno, int n_bins=0);
 template<typename T, typename T1>
 std::vector<double> LaggedMI(std::vector<T> pred_vars, std::vector<T1 > target, int n_bins, int min_lag, int max_lag, int lag_step);
 void LaggedMI(std::vector<std::vector<double> > embedVect, std::vector<double > vect_y_alligned, int n_bins=10);
@@ -506,6 +509,8 @@ template<typename T, typename T1>
 double correlation(int var_num, std::vector<std::vector<T> > &data, std::vector<T1> &target);
 template<typename T, typename T1>
 double correlation(std::vector<T> &data, std::vector<T1> &target);
+template<typename T, typename T1>
+T RoundToNearestValue(T numer, T1 value);
 double ComputeV (Histogram &pred_hist_st, Histogram &target_hist_st);
 std::vector<std::vector<int> > Combinations(std::vector<int> iterable, int r);
 template<typename T>
@@ -595,11 +600,29 @@ int ArmaEstimateGretl (DATASET *dset, PRN *prn, MODEL *model, int p, int d, int 
 std::pair<std::map<double, int>,std::map<double, int> > CorrgramGretl(int varno, int max_lag, DATASET *dset, gretlopt opt, PRN *prn,  std::string path_name="-1");
 std::map<double, double> PeriodogramGretl(int varno, int max_lag, DATASET *dset, gretlopt opt, PRN *prn, bool no_plot = false,  std::string path_name="-1");
 Summary *SummaryGretl(const DATASET *dset, PRN *prn, int *err);
+template<typename T>
+Summary *EDA(std::string path,  T &data, std::vector<std::string> &gretl_variable_name, std::string additional_name = "none", bool is_diffed = false);
+std::map<std::string, std::map< std::string, std::vector<double> > > PrepSummariesForSaving(std::vector<Summary*> summary_vect, std::vector<std::string> &stats_to_get, std::map<int, std::string> &variables_to_get);
 
 #endif
 
 
 void AnalyzeACFPACF(std::pair<std::map<double, int>,std::map<double, int> > acf_pacf_values, int size_data);
+
+
+
+
+
+double PyTorchF1(torch::Tensor accutual, torch::Tensor pred, bool is_training);
+
+
+
+
+
+
+
+
+
 
 
 }

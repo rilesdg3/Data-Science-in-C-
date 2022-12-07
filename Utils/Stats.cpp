@@ -203,6 +203,7 @@ void ComputeHistograms(std::vector<T> &data,Histogram &hist_st, int n_bins){
 	//int n_nan = std::count_if(data.begin(),data.end(), MyIsNan);
 
 
+	int my_n_bins=  n_bins;
 	std::vector<T> my_data(data.size());
 	auto end = std::copy_if (data.begin(), data.end(), my_data.begin(), [](T i){return !(std::isnan(i));} );
 	my_data.resize(std::distance(my_data.begin(),end));
@@ -218,7 +219,26 @@ void ComputeHistograms(std::vector<T> &data,Histogram &hist_st, int n_bins){
 	hist_st.bin_index.resize(my_data.size());// = bin;
 	std::iota(sorted_index.begin(), sorted_index.end(),0);
 	std::sort(sorted_index.begin(), sorted_index.end(), [&my_data](T i1, T i2){return my_data[i1] < my_data[i2];} );
-	stat_acc wh_acc(boost::accumulators::tag::density::num_bins = n_bins, boost::accumulators::tag::density::cache_size = c);
+
+
+	 //boost::math::statistics::interquartile_range(data);
+
+	int err = 0;
+	if(n_bins == 0){
+		double high = my_data[sorted_index[sorted_index.size()-1]];
+		double low = my_data[sorted_index[0]];
+		std::vector<double> for_gretl(my_data.size());
+		for(uint i = 0; i<my_data.size(); ++i)
+			for_gretl[i] = my_data[i];
+
+		double iqr = gretl_quantile(0, for_gretl.size()-1, for_gretl.data(), 0.75, OPT_NONE, &err);
+		iqr -= gretl_quantile(0, for_gretl.size()-1, for_gretl.data(),0.25, OPT_NONE, &err);
+		my_n_bins = (high - low)/(2*iqr*pow(c,(-1/3)) );
+		if(my_n_bins <= 1)
+			my_n_bins = 1;
+	}
+
+	stat_acc wh_acc(boost::accumulators::tag::density::num_bins = my_n_bins, boost::accumulators::tag::density::cache_size = c);
 
 	//fill accumulator
 	for (int j = 0; j < c; ++j)
@@ -253,6 +273,74 @@ void ComputeHistograms(std::vector<T> &data,Histogram &hist_st, int n_bins){
 
 }
 template void ComputeHistograms<double >(std::vector<double> & ,Histogram &, int);
+
+template<typename T>
+void ComputeHistograms(DATASET *dset, Histogram &hist_st, int varno, int n_bins){
+
+	std::vector<double> my_data(dset->n);
+	int my_n_bins=  n_bins;
+
+	auto end = std::copy_if(dset->Z[varno], dset->Z[varno]+dset->n, my_data.begin(), [](double i){return !(std::isnan(i));} );
+
+	my_data.resize(std::distance(my_data.begin(),end));
+
+	int c = my_data.size();
+
+	hist_st.count = c;
+
+	std::vector<int> sorted_index(my_data.size());//holds the index of my_data as if it were sorted, i.e. sorted_index[0] =12375 would be
+	//either the min or max or whatever my_data[12375] sorted_index[1] = 896, would be the second min or max or whatever
+
+	//std::vector<int> bin(my_data.size());
+	hist_st.bin_index.resize(my_data.size());// = bin;
+	std::iota(sorted_index.begin(), sorted_index.end(),0);
+	std::sort(sorted_index.begin(), sorted_index.end(), [&my_data](double i1, double i2){return my_data[i1] < my_data[i2];} );
+
+	int err = 0;
+	if(n_bins == 0){
+		double high = my_data[sorted_index[sorted_index.size()-1]];
+		double low = my_data[sorted_index[0]];
+		double iqr = gretl_quantile(0, my_data.size()-1, my_data.data(), 0.75, OPT_NONE, &err);
+
+		iqr -= gretl_quantile(0, my_data.size()-1, my_data.data(), 0.25, OPT_NONE, &err);
+
+		my_n_bins = (high - low)/(2*iqr*pow(c,(-1/3)) );
+		if(my_n_bins <= 1)
+			my_n_bins = 1;
+	}
+
+	stat_acc wh_acc(boost::accumulators::tag::density::num_bins = my_n_bins, boost::accumulators::tag::density::cache_size = c);
+
+	//fill accumulator
+	for (int j = 0; j < c; ++j)
+	{
+		//myAccumulator(my_data[j]);
+		wh_acc(my_data[j]);
+	}
+
+	//histogram_type hist = boost::accumulators::density(myAccumulator);
+
+	histogram_type hist = boost::accumulators::density(wh_acc);
+
+	double total = 0.0;
+	std::vector<int>::iterator it = sorted_index.begin();
+	//int bin_number = 0;
+	for( uint i = 0; i < hist.size(); i++ )
+	{
+		//std::cout << "Bin lower bound: " << hist[i].first << ", Value: " << hist[i].second << std::endl;
+		hist_st.bins.push_back(hist[i].first);
+		hist_st.marginals.push_back(hist[i].second);
+		for(; (it!=sorted_index.end() && my_data[*it] < hist[i].first); ++it){
+			hist_st.bin_index[*it]=i;
+			//cout<<"my_data[*it] < hist[i].first "<<(my_data[*it] < hist[i].first)<<endl;
+			//cout<<"value "<<my_data[*it]<<" n_bin "<<hist_st.bin_index[*it]<<" *it "<<*it<< " Bin lower bound: " << hist[i].first<<endl;
+
+		}
+
+		total += hist[i].second;
+	}
+}
+template void ComputeHistograms<double >(DATASET * ,Histogram &, int, int);
 
 
 /*
@@ -455,8 +543,8 @@ double DiscreteMI(Histogram &pred_hist_st, Histogram &target_hist_st)
 {
 
 	int n_cases = pred_hist_st.bin_index.size()-1;//number of rows in vector
-	int n_bins_pred = pred_hist_st.marginals.size()-1;
-	int n_bins_target = target_hist_st.marginals.size()-1;
+	int n_bins_pred = pred_hist_st.marginals.size();
+	int n_bins_target = target_hist_st.marginals.size();
 	std::vector<int > temp(target_hist_st.bins.size());
 	std::vector<std::vector<int > > contingency_table(target_hist_st.bins.size(),temp);
 
@@ -495,8 +583,6 @@ double DiscreteMI(Histogram &pred_hist_st, Histogram &target_hist_st)
 
 	return MI ;
 }
-
-
 
 /*
  * @brief: Computes Entropy
@@ -620,7 +706,18 @@ double correlation(std::vector<T> &data, std::vector<T1> &target)
 }
 template double correlation<double, double>(std::vector<double> &, std::vector<double> &);
 
+/*
+ * Rounds a number to the nearest value
+ *
+ * ex: number = 1.37, value = .25 return = 1.50, is value = .25 then it will round number up/down to nearest .25
+ */
+template<typename T, typename T1>
+T RoundToNearestValue(T number, T1 value){
 
+	int quotient;
+	return number-remquo(number,value,&quotient);
+}
+template double  RoundToNearestValue<double, double>(double, double);
 
 /*
  * THIS WAS NOT WORKING FOR THE LANL DATA SET
@@ -1806,13 +1903,6 @@ template double tau_davies<double, double>(double, double, std::vector<double> &
 
 
 
-
-
-
-
-
-
-
 /*
  * @briref:	wrapper for gretl shapiro_wilk test for normality; iterates over a map<string, vector<double> >
  * 			set transform to true if you want do log(1+x) were log=ln on the data
@@ -2188,6 +2278,488 @@ Summary *SummaryGretl(const DATASET *dset, PRN *prn, int *err){
 
 }
 
+/*
+ * @brief Creates a Gretl DATASET, Performs Exploratory data Analysis and returns a gretl Summary *
+ *
+ * @tparam &data:					the container that holds the data for EDA
+ * @param std::vector<std::string> &gretl_variable_name: vector of variables names
+ * @param bool is_diffed: True is the data is already differed, false otherwise default = false
+ *
+ */
+template<typename T>
+Summary *EDA(std::string path,  T &data, std::vector<std::string> &gretl_variable_name, std::string additional_name, bool is_diffed){
+
+	std::cout<<"Stats::EDA"<<std::endl;
+
+	//for(auto it:data){
+
+
+
+		// int use_residual = 0; /* or 0 */
+//		int vnum=0;             /* series ID for correlogram */
+//		gretlopt opt = OPT_NONE;
+		DATASET *dset;
+//		DATASET *diff_dset;
+		PRN *prn;
+//		MODEL *model;
+		Summary *summary;
+		gretlopt opt = OPT_NONE;//OPT_U;//OPT_B;
+		//int list[12] = {11,1,2,3,4,5,6,7,8,9,10,11};
+		//int list[2] = {1,0};
+		int list[gretl_variable_name.size()+1];//
+		list[0] = gretl_variable_name.size();
+		for(int i = 1; i<=list[0]; ++i)
+			list[i] = i-1;
+
+//		int list1[2] = {1,0};
+		int err=0;
+
+
+
+
+
+//		ConfigPaths config_path;
+
+//		gretl_matrix *cmat;
+//		gretl_matrix *pmat;
+
+		std::string box_plot_path = path+"GretlTmp/gpttmp.plt";
+		const char *literal = box_plot_path.c_str();//"test";
+//		int use_residuals =0;
+//		int max_lag = 365;//what about seasonal products thus mostly zero's
+
+
+		dset = datainfo_new();
+
+		prn = gretl_print_new(GRETL_PRINT_STDOUT, NULL);
+
+		std::string name_path = path;
+
+
+
+
+
+		//std::vector<std::string> var_names=this->gretl_variable_name;//({"constant","2011","2012","2013","2014", "2015","2016","2017", "2018","2019","2020", "2021"});
+
+
+		MyData::ToGretl<double>(data,dset,7,1,gretl_variable_name, false);//MyData::ToGretl(data,dset,7,1, "test");
+
+//		double p_value = 0.000;
+
+
+/*			//start: adf kpss tests
+			{
+				//DATASET *dset1;
+				//int list2[3] = {2,0,1};
+				//dset1 = datainfo_new();
+				//MyData::ToGretl(data,dset,7,1, var_name, true);
+
+
+				//int list3[3] = {2,1,1};
+				int adf_error = ::adf_test(1,list,dset,OPT_T,prn);
+
+				if (adf_error!=0) {
+					errmsg(adf_error, prn);
+				}
+
+				int kpss_error = ::kpss_test(1,list,dset,OPT_T,prn);
+
+				if (kpss_error!=0) {
+					errmsg(kpss_error, prn);
+				}
+
+				int plist[2] = {1,3};
+				int levin_error = ::levin_lin_test(1, plist, dset,OPT_NONE,prn);
+
+				if (levin_error!=0) {
+					errmsg(levin_error, prn);
+				}
+
+				int fractint_error = ::fractint(1,25,dset,OPT_A,prn);
+
+				if (fractint_error!=0) {
+					errmsg(fractint_error, prn);
+				}
+
+				//p_value = get_last_pvalue();//::get_urc_pvalue ();
+
+			}
+			//end: adf, kpss tests
+			*/
+
+		//H0: the sequence was produced in a random manner
+		//for(uint i = 0; i<var_names.size(); ++i)
+//		for(int i = list[1]; i<=list[0]; ++i){
+//			std::cout<<"Variable "<<this->variable_idx_to_name[i]<<std::endl;
+//			err = runs_test (i, dset,OPT_D, prn);
+//		}
+//
+//		std::vector<double> gretl_noramlity_test_p_values(var_names.size());
+//
+//			for(int i = list[1]; i<=list[0]; ++i){
+//				std::cout<<"Variable "<<this->variable_idx_to_name[i]<<std::endl;
+//				::gretl_normality_test(list[i],dset, OPT_W,prn);
+//				gretl_noramlity_test_p_values[i]=::get_last_pvalue();
+//			}
+//
+//			if(is_diffed){
+//				std::vector<std::vector<double> > tmp(1,gretl_noramlity_test_p_values);
+//				ReadWrite::SaveDataVector<double, const std::vector<std::vector<double> > >(path,"ShapiroWilks_test_Year_diffed",tmp);
+//			}
+//			else{
+//				std::vector<std::vector<double> > tmp(1,gretl_noramlity_test_p_values);
+//				ReadWrite::SaveDataVector<double, const std::vector<std::vector<double> > >(path,"ShapiroWilks_test_Year",tmp);
+//			}
+//
+//
+		for(int i = list[1]; i<list[0]; ++i){
+
+			name_path = path;
+			if(additional_name.compare("none") == 0){
+				if(is_diffed)
+					name_path += gretl_variable_name[i]+"_hist_plot_diffed.png";
+				else
+					name_path += gretl_variable_name[i]+"_hist_plot.png";
+			}
+			else{
+				if(is_diffed)
+					name_path += gretl_variable_name[i]+additional_name+"_hist_plot_diffed.png";
+				else
+					name_path += gretl_variable_name[i]+additional_name+"_hist_plot.png";
+
+			}
+
+			set_optval_string(::FREQ, OPT_U, name_path.c_str());
+
+			std::cout<<"Variable "<<gretl_variable_name[i]<<std::endl;
+			//int have_freq = ::freqdist (i, dset,OPT_NONE,prn);//::freqdist (i, dset,OPT_Z,prn);OPT_Z plots normal curve
+			//std::cout<<"do we have a frequencies "<<have_freq<<std::endl;
+		}
+
+		name_path = path;
+
+		if(is_diffed)
+			name_path += gretl_variable_name[0] + "box_plot_diff.png";
+		else
+			name_path += gretl_variable_name[0] + "box_plot.png";
+
+		set_optval_string(::BXPLOT, OPT_U, name_path.c_str());
+
+		std::map<boost::posix_time::ptime, ::Summary *> gretl_summary_vector;
+
+		summary = Stats::SummaryGretl(dset, prn, &err);//get_summary (list1,dset, opt,prn,&err);//get_summary (list1,dset, opt,prn,&err);
+
+		int *erf = &err;
+
+		err = boxplots(list, literal,dset, OPT_U);
+
+		boxplot_numerical_summary (literal, prn);
+//
+//		//  plots acf and pacf of the variable
+//		//		err = Stats::ArmaEstimateGretl(dset,prn,model,14,0,1,0,&use_residuals);
+//
+//
+//		std::pair<std::map<double, int>,std::map<double, int> > acf_pacf_values;
+//		//for(uint i = 0; i<var_names.size(); ++i)
+//		for(int i = list[1]; i<=list[0]; ++i){
+//			name_path = path+var_names[i];
+//			acf_pacf_values = Stats::CorrgramGretl(i, max_lag, dset, opt, prn, name_path);
+//		}
+//
+//		Stats::AnalyzeACFPACF(acf_pacf_values, dset->n);
+//
+//		std::map<double,double> spectral_density_period;
+//
+//		//I want to use width = -1 and OPT_NONE
+//		//		spectral_density_period = Stats::PeriodogramGretl(0,-1,dset,OPT_NONE, prn, true);
+//
+//
+//		//	double my_hurst_exponent = (double)hurstplot(list, dset, opt,prn);
+//
+//		double _my_hurst_exponent = 0.00000;
+//		for(int i = list[1]; i<=list[0]; ++i){
+//			//std::cout<<std::endl;
+//			name_path = path+var_names[i];
+//			list1[1] = i;
+//			std::cout<<"Variable "<<this->variable_idx_to_name[i]<<std::endl;
+//			_my_hurst_exponent = Stats::HurstExponentGretl(list1, dset, opt,prn, false, name_path);
+//		}
+
+
+
+		//for(int i = 0; i< var_names.size(); ++i){
+//		for(int i = list[1]; i<=list[0]; ++i){
+//
+//			//double gg_ray[dset->t2];
+//			std::vector<double> gg_ray;//(data[i].size());
+//			if(is_diffed){
+//				//gg_ray = data[i-1];
+//				std::cout<<"need to fix above"<<std::endl;
+//			}
+//			else{
+//				//gg_ray.resize(data[i-1].size());
+//				err = diff_series(dset->Z[i],gg_ray.data(),295,dset);
+//			}
+//
+//			opt = OPT_F;
+//			//diff_series(*dset->Z,g_ray.data(),opt,dset);
+//			//std::cout<<::function_from_string("diff")<<std::endl;
+//
+//
+//			std::cout<<var_names[i]<<std::endl;
+//
+//			//if (err) {
+//			//		errmsg(err, prn);
+//			//	}
+//
+//
+//			//get these by month
+//			int count = 0;
+//			for(int i = 1; i<gg_ray.size(); ++i){
+//				if(gg_ray[i] >0)
+//					++count;
+//
+//			}
+//			std::cout<<"%Up Days "<<(double)count/gg_ray.size()<<std::endl;
+//
+//			//std::vector<double> g_ray(gg_ray.begin(),gg_ray.end());
+//			//		free_summary(summary);
+//			//destroy_dataset(dset);
+//
+//			//DATASET *diff_dset;
+//
+//			//diff_dset = ::create_new_dataset(1,gg_ray.size(), 0);
+//			//diff_dset = datainfo_new();
+//			//dset = datainfo_new();
+//			diff_dset = datainfo_new();
+//			MyData::ToGretl(gg_ray,diff_dset,7,1, "diff_test");
+//
+//			//H0: the sequence was produced in a random manner
+//			//data must be differed first
+//			err = runs_test (0, diff_dset,OPT_E, prn);
+//			err = runs_test (0, diff_dset,OPT_NONE, prn);
+//
+//
+//			std::pair<std::map<double, int>,std::map<double, int> > diff_acf_pacf_values;
+//			opt = OPT_NONE;
+//			//diff_acf_pacf_values = Stats::CorrgramGretl(vnum, max_lag, diff_dset, opt, prn);
+//			diff_acf_pacf_values = Stats::CorrgramGretl(0, max_lag, diff_dset, opt, prn);
+//			::clear_datainfo(diff_dset,::CLEAR_FULL);
+//
+//		}
+//
+//
+//		std::vector<std::vector<int> > combinations = Stats::Combinations({0,1,2,3,4,5,6,7,8,9,10}, 2);
+//
+//		std::vector<double> tmp_vect(11);
+//		//for_each(tmp_vect.begin(),tmp_vect.end(), [](double i){*i = std::nan});
+//		/*		std::fill(tmp_vect.begin(),tmp_vect.end(),std::nan(""));
+//		std::vector<std::vector<double> > f_p_values_vect(var_names.size(), tmp_vect);
+//		std::vector<std::vector<double> > t_p_values_vect(var_names.size(), tmp_vect);
+//		std::vector<std::vector<double> > wilcoxon_p_values_vect(11, tmp_vect);*/
+//
+//		std::vector<std::vector<double> > f_p_values_vect(list[0], tmp_vect);
+//		std::vector<std::vector<double> > t_p_values_vect(list[0], tmp_vect);
+//		std::vector<std::vector<double> > wilcoxon_p_values_vect(list[0], tmp_vect);
+//
+//		for(auto i:combinations){
+//			//::diff_test(i.data(), dset,)
+//			std::cout<<"Means Test for "<<var_names[i[0]]<<" , "<<var_names[i[1]]<<std::endl;
+//
+//			int list2[3] = {2, i[0], i[1]};
+//			::vars_test(list2,dset,prn);
+//			double p_value = ::get_last_pvalue();
+//
+//			f_p_values_vect[i[0]][i[1]] = p_value;
+//
+//
+//			if(p_value<=.10)
+//				::means_test(list2,dset,::OPT_O,prn);
+//			else
+//				::means_test(list2,dset,::OPT_NONE,prn);
+//			p_value = ::get_last_pvalue();
+//			t_p_values_vect[i[0]][i[1]] = p_value;
+//
+//			if(p_value<=.10)
+//				std::cout<<"t-test sig"<<std::endl;
+//
+//			::diff_test(list2,dset,::OPT_R, prn);
+//
+//			p_value = ::get_last_pvalue();
+//			wilcoxon_p_values_vect[i[0]][i[1]] = p_value;
+//			if(p_value<=.10)
+//				std::cout<<"Wilcoxon sig"<<std::endl;
+//
+//
+//		}
+//
+//		if(is_diffed){
+//			ReadWrite::SaveDataVector<double, const std::vector<std::vector<double> > >(path,"F_test_Year_diffed",f_p_values_vect);
+//			ReadWrite::SaveDataVector<double, const std::vector<std::vector<double> > >(path,"T_test_Year_diffed",t_p_values_vect);
+//			ReadWrite::SaveDataVector<double, const std::vector<std::vector<double> > >(path,"Wilcoxon_test_Year_diffed",wilcoxon_p_values_vect);
+//		}
+//		else{
+//			ReadWrite::SaveDataVector<double, const std::vector<std::vector<double> > >(path,"F_test_Year",f_p_values_vect);
+//			ReadWrite::SaveDataVector<double, const std::vector<std::vector<double> > >(path,"T_test_Year",t_p_values_vect);
+//			ReadWrite::SaveDataVector<double, const std::vector<std::vector<double> > >(path,"Wilcoxon_test_Year",wilcoxon_p_values_vect);
+//		}
+
+		/*
+		 * and here also trying to figure out how to find peaks and valled and troughs in the acf and pacf functions
+		 * I am trying to figure out lag without looking at the chart-> i.e have the program do it
+		 * I got a start in CorrgramGretl know how or
+		 *
+		 */
+
+
+		std::cout<<"gretl var names with dropped variables"<<std::endl;
+		for(int i = 0; i< dset->v; ++i)
+			::printf("%s\n",dset->varname[i]);
+
+
+		//free_summary(summary);
+		destroy_dataset(dset);
+//		if(diff_dset != NULL)
+//			destroy_dataset(diff_dset);
+		gretl_print_destroy(prn);
+
+
+		//}
+
+		return summary;
+
+
+}
+template Summary *EDA<std::multimap<boost::posix_time::ptime/*time*/, std::vector<double/*level_details*/> > >(std::string, std::multimap<boost::posix_time::ptime/*time*/, std::vector<double/*level_details*/> >&, std::vector<std::string> &, std::string, bool );
+template Summary *EDA<std::map<boost::posix_time::time_duration/*end time of time period*/, std::multimap<boost::posix_time::ptime/*time*/,std::vector<double/*order_details*/> > > >(std::string,
+		std::map<boost::posix_time::time_duration/*end time of time period*/, std::multimap<boost::posix_time::ptime/*time*/,std::vector<double/*order_details*/> > >&, std::vector<std::string> &, std::string, bool );
+template Summary *EDA<std::vector<std::vector<double> > >(std::string,std::vector<std::vector<double> > &, std::vector<std::string> &, std::string, bool );
+
+
+
+/*
+ * @brief puts gretl summary into a container
+ *
+ * @param std::vector<Summary*> summary_vect: 			vector containing the pointer to a gretl Summary
+ * @param std::vector<std::string> &stats_to_get:		vector contianing the names of the simple stats to return
+ * @param std::map<int, std::string> &variables_to_get:	key->variable index in gretl summary value->its corresponding gretl variable name
+ *
+ *
+ */
+std::map<std::string/*variable*/, std::map< std::string/*statistic*/, std::vector<double>/*results*/ > > PrepSummariesForSaving(std::vector<Summary*> summary_vect, std::vector<std::string> &stats_to_get, std::map<int, std::string> &variables_to_get){
+
+	std::cout<<"PrepSummariesForSaving"<<std::endl;
+	std::vector<double> tmp_vect(summary_vect.size());
+	std::map< std::string, std::vector<double> > tmp_map;
+	std::map<std::string, std::map< std::string, std::vector<double> > > variable_name_stat_values;
+	std::map<int, std::map< std::string, std::vector<double> > > variable_name_stat_values_int;
+	std::map<int, std::string>::iterator variables_to_get_iter;
+	std::map<int, std::string> my_variables_to_get;
+	set<int> keep, remove;
+
+
+	std::map<int, int> var_to_get;
+
+	//get summary with most missing variables
+	int shortest_index = 0;
+	int shortest_value = summary_vect[shortest_index]->list[0];
+	for(uint j = 0; j < summary_vect.size(); ++j){
+		for(int i = 1; i<=summary_vect[j]->list[0]; ++i){//iterates variables
+			//std::cout<<"variable location in dset "<<summary_vect[j]->list[i]<<std::endl;
+			if(shortest_value > summary_vect[j]->list[0]){
+				shortest_index = j;
+				shortest_value = summary_vect[shortest_index]->list[0];
+			}
+		}
+	}
+
+	for(auto iter: variables_to_get)
+		var_to_get[iter.first] = 0;
+
+	//count the number of summaries that contain the variable
+	for(uint j = 1; j < summary_vect.size(); ++j){
+		for(int i = 0; i<=summary_vect[j]->list[0]; ++i){
+			var_to_get[summary_vect[j]->list[i]] +=1;
+		}
+	}
+
+	int count= 0;
+	int j_ = 0;
+	for(int q = 1; q <= summary_vect[shortest_index]->list[0]; ++q/*,++count*/){
+		auto i = var_to_get.find(summary_vect[shortest_index]->list[q]);
+		int gretl_dset_variable_index = summary_vect[shortest_index]->list[q];
+
+		variables_to_get_iter =variables_to_get.find(i->first);
+		//if every summary contains the variable then procceed
+		if(var_to_get[i->first] == summary_vect.size() -1){
+			for(auto stat : stats_to_get){
+				for(uint j = 0; j < summary_vect.size(); ++j){
+					j_ = j;
+					count = q;
+					if( j != shortest_index ){
+						count = 0;
+						while(count < summary_vect[j]->list[0] && summary_vect[j]->list[count] != gretl_dset_variable_index)
+							++count;
+						if(j == 0 && count != q)
+							std::cout<<"wha"<<std::endl;
+
+					}
+					if(summary_vect[j]->list[count] != gretl_dset_variable_index)
+						continue;
+					if(stat.compare("mean") == 0){
+						tmp_vect[j] = summary_vect[j]->mean[count-1];
+					}
+					else if(stat.compare("median") == 0){
+						tmp_vect[j] = summary_vect[j]->median[count-1];
+					}
+					else if(stat.compare("sd") == 0){
+						tmp_vect[j] = summary_vect[j]->sd[count-1];
+					}
+					else if(stat.compare("low") == 0){
+						tmp_vect[j] = summary_vect[j]->low[count-1];
+					}
+					else if(stat.compare("high") == 0){
+						tmp_vect[j] = summary_vect[j]->high[count-1];
+					}
+					else if(stat.compare("iqr") == 0){
+						tmp_vect[j] = summary_vect[j]->iqr[count-1];
+					}
+					else if(stat.compare("perc05") == 0){
+						tmp_vect[j] = summary_vect[j]->perc05[count-1];
+					}
+					else if(stat.compare("perc95") == 0){
+						tmp_vect[j] = summary_vect[j]->perc95[count-1];
+					}
+					else if(stat.compare("skew") == 0){
+						tmp_vect[j] = summary_vect[j]->skew[count-1];
+					}
+					else if(stat.compare("xkurt") == 0){
+						tmp_vect[j] = summary_vect[j]->xkurt[count-1];
+					}
+					else if(stat.compare("count") == 0){
+						tmp_vect[j] = summary_vect[j]->n;
+					}
+					else if(stat.compare("missingcount") == 0){
+						tmp_vect[j] = summary_vect[j]->misscount[count-1];
+					}
+				}
+				variables_to_get_iter =variables_to_get.find(i->first);
+				if(variables_to_get_iter != variables_to_get.end()){
+					variable_name_stat_values[variables_to_get_iter->second][stat] = tmp_vect;
+					tmp_vect[0]=-8675309;
+					tmp_vect[1]=-8675309;
+				}
+			}
+		}
+	}
+
+	return variable_name_stat_values;
+}
+
+
+
+
+
 #endif
 
 /*
@@ -2239,15 +2811,107 @@ void AnalyzeACFPACF(std::pair<std::map<double, int>,std::map<double, int> > acf_
 }
 
 
+double PyTorchF1(torch::Tensor y_actual_tensor, torch::Tensor y_pred_tensor, bool is_training){
+
+	int correct = 0;
+	int zero_count = 0;
+	int incorrect = 0;
+	int tp = 0;
+	int fn = 0;
+	int fp = 0;
+	int tn = 0;
+
+	int p = 0;
+	int n = 0;
+	int pp =0;
+	int pn = 0;
+
+	double f1_score = 0.0000;
+	torch::Tensor f1_score_tensor = torch::full({1},std::nan(""), torch::kDouble);
+
+	std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> y_actual_unique = at::_unique2(y_actual_tensor,false,false, true);
+
+	torch::Tensor y_pred = torch::full({y_pred_tensor.size(0)},std::nan(""), torch::kDouble);
+//	std::cout<<y_pred<<std::endl;
+
+	double positive_class = *std::get<0>(y_actual_unique)[0].data_ptr<double>();
+	p = *std::get<2>(y_actual_unique)[0].data_ptr<long>();
+	n = *std::get<2>(y_actual_unique)[1].data_ptr<long>();
+	for(int i = 0; i< y_actual_tensor.sizes()[0]; ++i){
+		y_pred[i] = *torch::argmax(y_pred_tensor[i]).data_ptr<long>();
+	}
+
+	std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> y_pred_unique = at::_unique2(y_pred,false,false, true);
+
+
+	double y = 0.000;
+	double y_hat = 0.000;
+
+	double precision = 0.000;
+	double recall = 0.000;
+
+	if(std::get<0>(y_actual_unique).size(0) == std::get<0>(y_pred_unique).size(0) ){
+		if(std::get<0>(y_actual_unique).size(0) == 2){
+			for(int i = 0; i< std::get<1>(y_actual_unique).size(0); ++i){
+				y = *std::get<1>(y_actual_unique)[i].data_ptr<long>();
+				y_hat = *std::get<1>(y_pred_unique)[i].data_ptr<long>();
+
+				//std::cout<<"y "<<y<<" y_hat "<<y_hat<<std::endl;
+				if(y == positive_class){
+					if(y == y_hat)
+						++tp;
+					else
+						++fn;
+				}
+				else{
+					if(y == y_hat)
+						++tn;
+					else
+						++fp;
+				}
+			}
+
+		}
+		else{
+			//TODO: multiclass to be implemented
+		}
+
+		if(tp != 0){
+			precision = (double)tp/((double)(tp+fp) );
+			recall = (double)tp/((double)(tp+fn) );
+
+			f1_score = (precision*recall/(precision+recall));
+		}
+		else
+			f1_score = 0.0000;
+
+		*f1_score_tensor[0].data_ptr<double>() = f1_score;
+
+
+
+		//f1_score_tensor.requires_grad_(it_training);
+
+
+	}
+	else
+		std::cout<<"PyTorchF1: std::get<0>(y_actual_unique).size(0) != std::get<0>(y_pred_unique).size(0)"<<std::endl;
 
 
 
 
 
-
-
+return f1_score;
 
 }
+
+
+
+
+
+
+
+
+}//End: namespace Stats
 
 
 
